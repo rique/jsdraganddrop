@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dragit!</title>
+    <style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    html {
+        height: 100%;
+    }
+
+    body {
+        background: #0f0f0f;
+        height: 100%;
+    }
+
+    #content {
+        width: 90%;
+        height: 90%;
+        background: #f0f0f0;
+        margin: auto;
+        position: relative;
+    }
+
+    #dragme {
+        width: 268px;
+        height: 320px;
+        position: absolute;
+        text-align: center;
+        background: #ff3030;
+        color: #fff;
+        left: 263px;
+        top: 145px;
+        cursor: move;
+        z-index: 100;
+        border-radius: 10px;
+    }
+
+    #dragme.hover {
+        background: #ff4a4a;
+    }
+
+    #dragme.active {
+        background: #a95b5b;
+    }
+
+    #dragme.dragged {
+        border: solid 1px #484848;
+        filter: drop-shadow(0 0 8px rgba(85, 85, 85, 0.6));
+    }
+
+    .grid {
+        width: 49.96%;
+        height: 49.96%;
+        display: inline-block;
+        vertical-align: top;
+        position: relative;
+    }
+
+    #div-l1, #div-l2 {
+        border-right: 1px solid #6f6e6e;
+    }
+
+    #div-l1, #div-r1 {
+        border-bottom: 1px solid #6f6e6e;
+    }
+
+    .grid.draggin {
+        background: #fe5f5f;
+    }
+
+    .draggitin {
+        position: absolute;
+        width: 268px;
+        height: 320px;
+        left: 262px;
+        top: 144px;
+        border: 1px solid #0a0a0a;
+        background: #fff;
+        border-radius: 10px;
+    }
+    </style>
+</head>
+<body>
+    <div id="content">
+        <div id="dragme">
+            <p>Drag me!</p>
+        </div>
+        <div class="grid" id="div-l1">
+            <div class="draggitin" id="drg-l1"></div>
+        </div><div class="grid" id="div-r1">
+            <div class="draggitin" id="drg-r1"></div>
+        </div><div class="grid" id="div-l2">
+            <div class="draggitin" id="drg-l2"></div>
+        </div><div class="grid" id="div-r2">
+            <div class="draggitin" id="drg-r2"></div>
+        </div>
+    </div>
+<script>
+((window, document, undefined) => {
+    const dragme = document.getElementById('dragme');
+    const divGrids = document.querySelectorAll('.grid');
+
+    let pressed = false, currentDiv, previousDiv, prevX, prevY;
+
+    dragme.addEventListener('mouseenter', (evt) => {
+        evt.target.classList.add('hover');
+    });
+
+    dragme.addEventListener('mouseleave', (evt) => {
+        evt.target.classList.remove('hover');
+    });
+
+    const _divContainsTarget = (target, div) => {
+        const divOffsetRight = div.offsetLeft + div.offsetWidth;
+        const divOffsetBottom = div.offsetTop + div.offsetHeight;
+        const targetOffsetLeft = target.offsetLeft + (target.offsetWidth / 2);
+        const targetOffsetTop = target.offsetTop + (target.offsetHeight / 2);
+
+        return (targetOffsetLeft >= div.offsetLeft && targetOffsetLeft < divOffsetRight) &&
+            (targetOffsetTop >= div.offsetTop && targetOffsetTop < divOffsetBottom);
+    };
+
+    const dragit = (evt) => {
+        pressed = true;
+        dragme.classList.add('dragged', 'active');
+        dragme.classList.remove('hover');
+
+        currentDiv = undefined;
+        divGrids.forEach((div) => {
+            if (_divContainsTarget(dragme, div)) {
+                div.classList.add('draggin');
+                currentDiv = div;
+            } else {
+                div.classList.remove('draggin');
+            }
+        });
+
+        if (prevX && prevY) {
+            let dragX = dragme.offsetLeft + (evt.clientX - prevX),
+                dragY = dragme.offsetTop + (evt.clientY - prevY);
+            requestAnimationFrame(() => {
+                dragme.style.left = `${dragX}px`;
+                dragme.style.top = `${dragY}px`;
+            });
+        }
+
+        prevX = evt.clientX;
+        prevY = evt.clientY;
+    };
+
+    const dragmove = (evt) => {
+        if (pressed)
+            dragit(evt);
+    };
+
+    const dragstop = (evt) => {
+        if (!pressed)
+            return;
+        pressed = false;
+        prevX = undefined;
+        prevY = undefined;
+        dragme.classList.remove('active');
+        if (!currentDiv)
+            currentDiv = previousDiv;
+        if (currentDiv) {
+            const subDiv = document.querySelector(`#${currentDiv.id} .draggitin`);
+            const bordersWidth = subDiv.offsetWidth - subDiv.clientWidth != 0 ? 1 : 0;
+            const bordersHeight = subDiv.offsetHeight - subDiv.clientHeight != 0 ? 1 : 0;
+            const toX = subDiv.offsetLeft + currentDiv.offsetLeft + bordersWidth;
+            const toY = subDiv.offsetTop + currentDiv.offsetTop + bordersHeight;
+            moveBox(dragme, toX, toY, () => {
+                document.querySelectorAll('.draggin').forEach(el => el.classList.remove('draggin'));
+                previousDiv = currentDiv;
+            });
+        } else
+            dragme.classList.add('hover');
+
+        dragme.classList.remove('dragged');
+    };
+
+    const moveBox = (box, endX, endY, cb) => {
+
+        const keyFrames = [{
+            left: box.style.left,
+            top: box.style.top,
+        }, {
+            left: `${endX}px`,
+            top: `${endY}px`
+        }];
+
+        const kfEffect = new KeyframeEffect(box, keyFrames, {
+            duration: 88,
+        });
+
+        const animationElem = new Animation(kfEffect, document.timeline);
+
+        animationElem.onfinish = () => {
+            box.style.left = `${endX}px`;
+            box.style.top = `${endY}px`;
+            if (typeof cb === 'function')
+                cb();
+        };
+
+        animationElem.play();
+    };
+
+    dragme.addEventListener('mousedown', dragit);
+    document.addEventListener('mousemove', dragmove);
+    document.addEventListener('mouseup', dragstop);
+})(this, document);
+</script>
+</body>
+

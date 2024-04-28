@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dragit!</title>
+    <style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    html {
+        height: 100%;
+    }
+
+    body {
+        background: #0f0f0f;
+        height: 100%;
+    }
+
+    #content {
+        width: 90%;
+        height: 90%;
+        background: #f0f0f0;
+        margin: auto;
+        position: relative;
+        border-left: 1px solid #0f0f0f;
+        border-right: 1px solid #0f0f0f;
+        user-select: none;
+    }
+
+    .row {
+        width: 100%;
+        border-bottom: 1px solid #0f0f0f;
+        background: #f7f8f8;
+    }
+
+    .row:has(.empty) {
+        border-bottom: 1px dashed #0f0f0f;
+    }
+
+    .row:first-child {
+        border-top: 1px solid #0f0f0f;
+    }
+
+    .row.lonely:nth-child(even) {
+        background: #bbe3fc;
+        color: #fff;
+    }
+
+    .row.lonely:nth-child(even):hover {
+        background: #a5c9e1;
+    }
+
+    .row:nth-child(odd):hover {
+        background: #eaeaea;
+    }
+
+    .empty {
+        height: 30px;
+        display: block;
+        width: 100%;
+        border-top: 1px dashed #0f0f0f;
+    }
+
+    .row.dragged {
+        border: 1px dashed #0f0f0f;
+        background: #fbfbfb;
+        color: inherit;
+    }
+
+    .cell {
+        border-right: 1px solid #0f0f0f;
+        display: inline-block;
+        vertical-align: top;
+        width: 33%;
+        text-align: center;
+        padding: 6px 0;
+        cursor: move;
+    }
+
+    .cell:last-child {
+        border: 0;
+    }
+
+    </style>
+</head>
+<body>
+    <div id="content">
+        <div class="row lonely">
+            <div class="cell">Value 1</div><div class="cell">Value 2</div><div class="cell">Value 3</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 11</div><div class="cell">Value 21</div><div class="cell">Value 31</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 12</div><div class="cell">Value 22</div><div class="cell">Value 32</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 13</div><div class="cell">Value 23</div><div class="cell">Value 33</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 14</div><div class="cell">Value 24</div><div class="cell">Value 34</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 15</div><div class="cell">Value 25</div><div class="cell">Value 35</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 16</div><div class="cell">Value 26</div><div class="cell">Value 36</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 17</div><div class="cell">Value 27</div><div class="cell">Value 37</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 18</div><div class="cell">Value 28</div><div class="cell">Value 38</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 19</div><div class="cell">Value 29</div><div class="cell">Value 39</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 10</div><div class="cell">Value 20</div><div class="cell">Value 30</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 111</div><div class="cell">Value 211</div><div class="cell">Value 311</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 122</div><div class="cell">Value 222</div><div class="cell">Value 322</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 133</div><div class="cell">Value 233</div><div class="cell">Value 333</div>
+        </div>
+        <div class="row lonely">
+            <div class="cell">Value 144</div><div class="cell">Value 244</div><div class="cell">Value 344</div>
+        </div>
+    </div>
+</body>
+<script>
+(function(window, document, undefined) {
+
+    const getCursor = (evt) => {
+        return {
+            X: evt.clientX,
+            Y: evt.clientY
+        }
+    }
+
+    const DragmeMover = function(dragme) {
+        this.dragme = dragme;
+    }
+    DragmeMover.prototype = {
+        init() {
+            return this.dragme.init();
+        },
+        moveTo(x, y) {
+            if (this.prevX && this.prevY) {
+                let dragX = this.dragme.offsetLeft() + (x - this.prevX),
+                    dragY = this.dragme.offsetTop() + (y - this.prevY);
+                requestAnimationFrame(this.dragme.setLeftTop.bind(this.dragme, dragX, dragY));
+            }
+
+            this.prevX = x;
+            this.prevY = y;
+        },
+        moveXTo(x) {
+            if (this.prevX) {
+                let dragX = this.dragme.offsetLeft() + (x - this.prevX);
+                requestAnimationFrame(this.dragme.setLeft.bind(this.dragme, dragX));
+            }
+
+            this.prevX = x;
+        },
+        moveYTo(y) {
+            if (this.prevY) {
+                let dragY = this.dragme.offsetLeft() + (y - this.prevY);
+                requestAnimationFrame(this.dragme.setTop.bind(this.dragme, dragY));
+            }
+
+            this.prevY = y;
+        },
+        done() {
+            this.prevX = undefined;
+            this.prevY = undefined;
+            this.dragme.reset();
+        },
+        getDragme() {
+            return this.dragme;
+        }
+    };
+
+    const Dragme = function(dragElem) {
+        this.dragElem = dragElem;
+    }
+    Dragme.prototype = {
+        getDragElem() {
+            return this.dragElem;
+        },
+        init() {
+            if (!this.dragElem)
+                return false;
+
+            this.dragElem.style.position = 'absolute';
+            this.dragElem.style.left = `${this.offsetLeft()}px`;
+            this.dragElem.style.top = `${this.offsetTop()}px`;
+            this.dragElem.style.zIndex= 100;
+            this.dragElem.classList.replace('lonely', 'dragged');
+
+            return true;
+        },
+        reset() {
+            if (this.emptyRow)
+                this._removeEmptyRow();
+            this.dragElem.style = {};
+            this.dragElem.classList.replace('dragged', 'lonely');
+        },
+        offsetTop() {
+            return this.dragElem.offsetTop;
+        },
+        offsetLeft() {
+            return this.dragElem.offsetLeft;
+        },
+        offsetRight() {
+            return this.dragElem.offsetLeft + this.dragElem.offsetWidth
+        },
+        offsetBottom() {
+            return this.dragElem.offsetTop + this.dragElem.offsetHeight;
+        },
+        offsetWidth() {
+            return this.dragElem.offsetWidth;
+        },
+        offsetHeight() {
+            return this.dragElem.offsetHeight;
+        },
+        left() {
+            return this.dragElem.style.left;
+        },
+        top() {
+            return this.dragElem.style.top;
+        },
+        setLeft(left) {
+            this.dragElem.style.left = `${left}px`;
+        },
+        setTop(top) {
+            this.dragElem.style.top = `${top}px`;
+        },
+        setLeftTop(left, top) {
+            this.dragElem.style.left = `${left}px`;
+            this.dragElem.style.top = `${top}px`;
+        },
+        insertDragAfter(drag) {
+            drag.getDragElem().insertAdjacentElement('afterend', this.dragElem);
+        },
+        insertEmptyRowAfter() {
+            if (!this.emptyRow)
+                this._setUpEmptyRow();
+
+            this.dragElem.append(this.emptyRow);
+        },
+        removeEmptyRowAFter() {
+            if (!this.emptyRow)
+                return;
+            this.emptyRow.remove();
+            this.emptyRow = undefined;
+        },
+        _setUpEmptyRow() {
+            this.emptyRow = document.createElement('div');
+            this.emptyRow.className = 'empty';
+        }
+    }
+
+    const Dragit = function(dragMover) {
+        this.dragMover = dragMover;
+        this.pressed = false;
+    }
+    Dragit.prototype = {
+        setDragMover(dragMover) {
+            this.dragMover = dragMover;
+        },
+        getDragMover() {
+            return this.dragMover;
+        },
+        getDragme() {
+            return this.dragMover.getDragme();
+        },
+        dragit(cursor) {
+            if (!this._isInit)
+                this._init();
+            this.pressed = true;
+            this.dragMover.moveTo(cursor.X, cursor.Y);
+        },
+        dragmove(cursor) {
+            if (this.pressed)
+                this.dragit(cursor);
+        },
+        dragstop(cursor) {
+            if (!this.pressed)
+                return;
+            this._finish();
+        },
+        insertDragAfter(drag) {
+            this.getDragme().insertDragAfter(drag.getDragme());
+        },
+        _init() {
+            this._isInit = this.dragMover.init();
+        },
+        _finish() {
+            this.pressed = false;
+            this._isInit = false;
+            this.dragMover.done();
+            if (this.onFinish && typeof this.onFinish === 'function')
+                this.onFinish(this);
+        }
+    }
+
+    const DragitManager = function(drags) {
+        this.drags = drags || [];
+    }
+    DragitManager.prototype = {
+        activate(elementsArray) {
+            this._bindedDragit = this._dragit.bind(this);
+            this._bindedDragmove = this._dragmove.bind(this);
+            this._bindedDragstop = this._dragstop.bind(this);
+
+            document.addEventListener('mousedown', this._bindedDragit);
+            document.addEventListener('mousemove', this._bindedDragmove);
+            document.addEventListener('mouseup', this._bindedDragstop);
+
+            if (elementsArray)
+                this.setDrags(elementsArray);
+
+            this.activated = true;
+        },
+        setDrags(elementsArray) {
+            elementsArray.forEach(el => this.drags.push(new Dragit(new DragmeMover(new Dragme(el)))));
+        },
+        deactivate() {
+            if (!this.activated)
+                return;
+
+            document.removeEventListener('mousedown', this._bindedDragit);
+            document.removeEventListener('mousemove', this._bindedDragmove);
+            document.removeEventListener('mouseup', this._bindedDragstop);
+        },
+        _dragit(evt) {
+            this._findCursorHoveredDrag(getCursor(evt), (drag, cursor) => {
+                drag.dragit(cursor);
+                this.currentDrag = drag;
+            });
+        },
+        _dragmove(evt) {
+            if (!this.currentDrag)
+                return;
+
+            const drag = this._findHoveredDrag(this.currentDrag);
+
+            if (drag) {
+                if (this.hoveredDrag)
+                    this.hoveredDrag.getDragme().removeEmptyRowAFter();
+                drag.getDragme().insertEmptyRowAfter();
+                this.hoveredDrag = drag;
+            }
+
+            this.currentDrag.dragmove(getCursor(evt));
+        },
+        _dragstop(evt) {
+            if (!this.currentDrag)
+                return;
+
+            const drag = this._findHoveredDrag(this.currentDrag);
+
+            if (this.hoveredDrag)
+                this.hoveredDrag.getDragme().removeEmptyRowAFter();
+
+            if (drag) {
+                this.currentDrag.insertDragAfter(drag);
+            }
+
+            this.currentDrag.dragstop(getCursor(evt));
+            this.currentDrag = undefined;
+            this.hoveredDrag = undefined;
+        },
+        _divContainsDrag(drag, div) {
+            const divOffsetRight = div.offsetLeft() + div.offsetWidth();
+            const divOffsetBottom = div.offsetTop() + div.offsetHeight();
+            const dragOffsetLeft = drag.offsetLeft() + (drag.offsetWidth() / 2);
+            const dragOffsetTop = drag.offsetTop() + (drag.offsetHeight() / 2);
+
+            return (dragOffsetLeft >= div.offsetLeft() && dragOffsetLeft <= divOffsetRight) &&
+                (dragOffsetTop >= div.offsetTop() && dragOffsetTop <= divOffsetBottom);
+        },
+        _TargetContainsCursor(cursor, target) {
+            return cursor.X > target.offsetLeft() && cursor.X < target.offsetRight() &&
+                cursor.Y > target.offsetTop() && cursor.Y < target.offsetBottom();
+        },
+        _findCursorHoveredDrag(cursor, cb) {
+            for (let i = 0; i < this.drags.length; ++i) {
+                let drag = this.drags[i];
+                if (this._TargetContainsCursor(cursor, drag.getDragme())) {
+                    if (typeof cb === 'function')
+                        cb(drag, cursor);
+                    break;
+                }
+            }
+        },
+        _findHoveredDrag(drag) {
+            return this.drags.find(dr => dr.getDragme() != drag.getDragme() && this._divContainsDrag(drag.getDragme(), dr.getDragme()));
+        }
+    };
+
+    const dragitManager = new DragitManager();
+    dragitManager.activate(document.querySelectorAll('.row'));
+})(this, document);
+</script>
