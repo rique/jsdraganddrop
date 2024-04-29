@@ -34,8 +34,12 @@
         background: #f7f8f8;
     }
 
-    .row:has(.empty) {
-        border-bottom: 1px dashed #0f0f0f;
+    .row.head {
+        font-weight: bold;
+    }
+
+    .row:has(.empty), .row.hovered {
+        border-bottom: 2px solid #ff4f4f;
     }
 
     .row:first-child {
@@ -56,26 +60,29 @@
     }
 
     .empty {
-        height: 30px;
+        height: 0px;
         display: block;
         width: 100%;
-        border-top: 1px dashed #0f0f0f;
+        background:#f7f8f8;
+        border-top: 1px solid #0f0f0f;
     }
 
     .row.dragged {
         border: 1px dashed #0f0f0f;
-        background: #fbfbfb;
-        color: inherit;
+        filter: drop-shadow(0 0 8px rgba(85, 85, 85, 0.5));
     }
 
     .cell {
         border-right: 1px solid #0f0f0f;
         display: inline-block;
         vertical-align: top;
-        width: 33%;
         text-align: center;
         padding: 6px 0;
         cursor: move;
+    }
+
+    .head .cell, .cell.editable {
+        cursor: default;
     }
 
     .cell:last-child {
@@ -86,326 +93,503 @@
 </head>
 <body>
     <div id="content">
-        <div class="row lonely">
-            <div class="cell">Value 1</div><div class="cell">Value 2</div><div class="cell">Value 3</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 11</div><div class="cell">Value 21</div><div class="cell">Value 31</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 12</div><div class="cell">Value 22</div><div class="cell">Value 32</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 13</div><div class="cell">Value 23</div><div class="cell">Value 33</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 14</div><div class="cell">Value 24</div><div class="cell">Value 34</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 15</div><div class="cell">Value 25</div><div class="cell">Value 35</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 16</div><div class="cell">Value 26</div><div class="cell">Value 36</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 17</div><div class="cell">Value 27</div><div class="cell">Value 37</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 18</div><div class="cell">Value 28</div><div class="cell">Value 38</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 19</div><div class="cell">Value 29</div><div class="cell">Value 39</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 10</div><div class="cell">Value 20</div><div class="cell">Value 30</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 111</div><div class="cell">Value 211</div><div class="cell">Value 311</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 122</div><div class="cell">Value 222</div><div class="cell">Value 322</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 133</div><div class="cell">Value 233</div><div class="cell">Value 333</div>
-        </div>
-        <div class="row lonely">
-            <div class="cell">Value 144</div><div class="cell">Value 244</div><div class="cell">Value 344</div>
-        </div>
     </div>
-</body>
-<script>
-(function(window, document, undefined) {
 
-    const getCursor = (evt) => {
-        return {
-            X: evt.clientX,
-            Y: evt.clientY
-        }
-    }
+    <script>
+    (function(window, document, undefined) {
 
-    const DragmeMover = function(dragme) {
-        this.dragme = dragme;
-    }
-    DragmeMover.prototype = {
-        init() {
-            return this.dragme.init();
-        },
-        moveTo(x, y) {
-            if (this.prevX && this.prevY) {
-                let dragX = this.dragme.offsetLeft() + (x - this.prevX),
-                    dragY = this.dragme.offsetTop() + (y - this.prevY);
-                requestAnimationFrame(this.dragme.setLeftTop.bind(this.dragme, dragX, dragY));
+        const makeid = (length) => {
+            var result           = '';
+            var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-';
+            var charactersLength = characters.length;
+            for ( var i = 0; i < length; i++ ) {
+                result += characters.charAt(Math.floor(Math.random() * charactersLength));
             }
-
-            this.prevX = x;
-            this.prevY = y;
-        },
-        moveXTo(x) {
-            if (this.prevX) {
-                let dragX = this.dragme.offsetLeft() + (x - this.prevX);
-                requestAnimationFrame(this.dragme.setLeft.bind(this.dragme, dragX));
-            }
-
-            this.prevX = x;
-        },
-        moveYTo(y) {
-            if (this.prevY) {
-                let dragY = this.dragme.offsetLeft() + (y - this.prevY);
-                requestAnimationFrame(this.dragme.setTop.bind(this.dragme, dragY));
-            }
-
-            this.prevY = y;
-        },
-        done() {
-            this.prevX = undefined;
-            this.prevY = undefined;
-            this.dragme.reset();
-        },
-        getDragme() {
-            return this.dragme;
+            return result;
         }
-    };
 
-    const Dragme = function(dragElem) {
-        this.dragElem = dragElem;
-    }
-    Dragme.prototype = {
-        getDragElem() {
-            return this.dragElem;
-        },
-        init() {
-            if (!this.dragElem)
-                return false;
+        const getButton = (key) => {
+            const buttons = {
+                0: 'uninitialized',
+                1: 'leftClick',
+                2: 'rightClick',
+                4: 'middle',
+                8: 'back',
+                16: 'forward'
+            };
+            if (buttons.hasOwnProperty(key))
+                return buttons[key];
+            return 'unknown';
+        };
 
-            this.dragElem.style.position = 'absolute';
-            this.dragElem.style.left = `${this.offsetLeft()}px`;
-            this.dragElem.style.top = `${this.offsetTop()}px`;
-            this.dragElem.style.zIndex= 100;
-            this.dragElem.classList.replace('lonely', 'dragged');
-
-            return true;
-        },
-        reset() {
-            if (this.emptyRow)
-                this._removeEmptyRow();
-            this.dragElem.style = {};
-            this.dragElem.classList.replace('dragged', 'lonely');
-        },
-        offsetTop() {
-            return this.dragElem.offsetTop;
-        },
-        offsetLeft() {
-            return this.dragElem.offsetLeft;
-        },
-        offsetRight() {
-            return this.dragElem.offsetLeft + this.dragElem.offsetWidth
-        },
-        offsetBottom() {
-            return this.dragElem.offsetTop + this.dragElem.offsetHeight;
-        },
-        offsetWidth() {
-            return this.dragElem.offsetWidth;
-        },
-        offsetHeight() {
-            return this.dragElem.offsetHeight;
-        },
-        left() {
-            return this.dragElem.style.left;
-        },
-        top() {
-            return this.dragElem.style.top;
-        },
-        setLeft(left) {
-            this.dragElem.style.left = `${left}px`;
-        },
-        setTop(top) {
-            this.dragElem.style.top = `${top}px`;
-        },
-        setLeftTop(left, top) {
-            this.dragElem.style.left = `${left}px`;
-            this.dragElem.style.top = `${top}px`;
-        },
-        insertDragAfter(drag) {
-            drag.getDragElem().insertAdjacentElement('afterend', this.dragElem);
-        },
-        insertEmptyRowAfter() {
-            if (!this.emptyRow)
-                this._setUpEmptyRow();
-
-            this.dragElem.append(this.emptyRow);
-        },
-        removeEmptyRowAFter() {
-            if (!this.emptyRow)
-                return;
-            this.emptyRow.remove();
-            this.emptyRow = undefined;
-        },
-        _setUpEmptyRow() {
-            this.emptyRow = document.createElement('div');
-            this.emptyRow.className = 'empty';
+        const getCursor = (evt) => {
+            return {
+                X: evt.clientX,
+                Y: evt.clientY,
+                buttons: getButton(evt.buttons)
+            }
         }
-    }
 
-    const Dragit = function(dragMover) {
-        this.dragMover = dragMover;
-        this.pressed = false;
-    }
-    Dragit.prototype = {
-        setDragMover(dragMover) {
+        const DragmeMover = function(dragme) {
+            this.dragme = dragme;
+        }
+        DragmeMover.prototype = {
+            init() {
+                return this.dragme.init();
+            },
+            moveTo(x, y) {
+                if (this.prevX && this.prevY) {
+                    let dragX = this.dragme.offsetLeft() + (x - this.prevX),
+                        dragY = this.dragme.offsetTop() + (y - this.prevY);
+                    requestAnimationFrame(this.dragme.setLeftTop.bind(this.dragme, dragX, dragY));
+                }
+
+                this.prevX = x;
+                this.prevY = y;
+            },
+            moveXTo(x) {
+                if (this.prevX) {
+                    let dragX = this.dragme.offsetLeft() + (x - this.prevX);
+                    requestAnimationFrame(this.dragme.setLeft.bind(this.dragme, dragX));
+                }
+
+                this.prevX = x;
+            },
+            moveYTo(y) {
+                if (this.prevY) {
+                    let dragY = this.dragme.offsetLeft() + (y - this.prevY);
+                    requestAnimationFrame(this.dragme.setTop.bind(this.dragme, dragY));
+                }
+
+                this.prevY = y;
+            },
+            done() {
+                this.prevX = undefined;
+                this.prevY = undefined;
+                this.dragme.reset();
+            },
+            getDragme() {
+                return this.dragme;
+            }
+        };
+
+        const Dragme = function(dragElem) {
+            this.dragElem = dragElem;
+        }
+        Dragme.prototype = {
+            getDragElem() {
+                return this.dragElem;
+            },
+            init() {
+                if (!this.dragElem)
+                    return false;
+
+                this.dragElem.style.position = 'absolute';
+                this.dragElem.style.left = `${this.offsetLeft()}px`;
+                this.dragElem.style.top = `${this.offsetTop()}px`;
+                this.dragElem.style.zIndex= 100;
+                this.dragElem.classList.add('dragged');
+
+                return true;
+            },
+            reset() {
+                if (this.emptyRow)
+                    this._removeEmptyRow();
+                this.dragElem.style = {};
+                this.dragElem.classList.remove('dragged');
+            },
+            offsetTop() {
+                return this.dragElem.offsetTop;
+            },
+            offsetLeft() {
+                return this.dragElem.offsetLeft;
+            },
+            offsetRight() {
+                return this.dragElem.offsetLeft + this.dragElem.offsetWidth
+            },
+            offsetBottom() {
+                return this.dragElem.offsetTop + this.dragElem.offsetHeight;
+            },
+            offsetWidth() {
+                return this.dragElem.offsetWidth;
+            },
+            offsetHeight() {
+                return this.dragElem.offsetHeight;
+            },
+            left() {
+                return this.dragElem.style.left;
+            },
+            top() {
+                return this.dragElem.style.top;
+            },
+            setLeft(left) {
+                this.dragElem.style.left = `${left}px`;
+            },
+            setTop(top) {
+                this.dragElem.style.top = `${top}px`;
+            },
+            setLeftTop(left, top) {
+                this.dragElem.style.left = `${left}px`;
+                this.dragElem.style.top = `${top}px`;
+            },
+            setHovered() {
+                this.dragElem.classList.toggle('hovered')
+            },
+            insertDragAfter(drag) {
+                drag.getDragElem().insertAdjacentElement('afterend', this.dragElem);
+            },
+            insertEmptyRowAfter() {
+                if (!this.emptyRow)
+                    this._setUpEmptyRow();
+
+                this.dragElem.append(this.emptyRow);
+            },
+            removeEmptyRowAFter() {
+                if (!this.emptyRow)
+                    return;
+                this.emptyRow.remove();
+                this.emptyRow = undefined;
+            },
+            _setUpEmptyRow() {
+                this.emptyRow = document.createElement('div');
+                this.emptyRow.className = 'empty';
+            }
+        }
+
+        const Dragit = function(dragMover) {
             this.dragMover = dragMover;
-        },
-        getDragMover() {
-            return this.dragMover;
-        },
-        getDragme() {
-            return this.dragMover.getDragme();
-        },
-        dragit(cursor) {
-            if (!this._isInit)
-                this._init();
-            this.pressed = true;
-            this.dragMover.moveTo(cursor.X, cursor.Y);
-        },
-        dragmove(cursor) {
-            if (this.pressed)
-                this.dragit(cursor);
-        },
-        dragstop(cursor) {
-            if (!this.pressed)
-                return;
-            this._finish();
-        },
-        insertDragAfter(drag) {
-            this.getDragme().insertDragAfter(drag.getDragme());
-        },
-        _init() {
-            this._isInit = this.dragMover.init();
-        },
-        _finish() {
             this.pressed = false;
-            this._isInit = false;
-            this.dragMover.done();
-            if (this.onFinish && typeof this.onFinish === 'function')
-                this.onFinish(this);
         }
-    }
+        Dragit.prototype = {
+            setDragMover(dragMover) {
+                this.dragMover = dragMover;
+            },
+            getDragMover() {
+                return this.dragMover;
+            },
+            getDragme() {
+                return this.dragMover.getDragme();
+            },
+            dragit(cursor) {
+                if (cursor.buttons != 'leftClick')
+                    return;
 
-    const DragitManager = function(drags) {
-        this.drags = drags || [];
-    }
-    DragitManager.prototype = {
-        activate(elementsArray) {
-            this._bindedDragit = this._dragit.bind(this);
-            this._bindedDragmove = this._dragmove.bind(this);
-            this._bindedDragstop = this._dragstop.bind(this);
+                if (!this._isInit)
+                    this._init();
+                this.pressed = true;
+                this.dragMover.moveTo(cursor.X, cursor.Y);
+            },
+            dragmove(cursor) {
+                if (this.pressed)
+                    this.dragit(cursor);
+            },
+            dragstop(cursor) {
+                if (!this.pressed)
+                    return;
+                this._finish();
+            },
+            insertDragAfter(drag) {
+                this.getDragme().insertDragAfter(drag.getDragme());
+            },
+            setHovered(hovered) {
+               this.getDragme().setHovered(hovered)
+            },
+            _init() {
+                this._isInit = this.dragMover.init();
+            },
+            _finish() {
+                this.pressed = false;
+                this._isInit = false;
+                this.dragMover.done();
+                if (this.onFinish && typeof this.onFinish === 'function')
+                    this.onFinish(this);
+            }
+        }
 
-            document.addEventListener('mousedown', this._bindedDragit);
-            document.addEventListener('mousemove', this._bindedDragmove);
-            document.addEventListener('mouseup', this._bindedDragstop);
+        const DragitManager = function(drags) {
+            this.drags = drags || [];
+            this.seekParent = false;
+        }
+        DragitManager.prototype = {
+            activate(elementsArray, seekParent) {
+                this.seekParent = seekParent;
+                this._bindedDragit = this._dragit.bind(this);
+                this._bindedDragmove = this._dragmove.bind(this);
+                this._bindedDragstop = this._dragstop.bind(this);
 
-            if (elementsArray)
-                this.setDrags(elementsArray);
+                document.addEventListener('mousedown', this._bindedDragit);
+                document.addEventListener('mousemove', this._bindedDragmove);
+                document.addEventListener('mouseup', this._bindedDragstop);
 
-            this.activated = true;
-        },
-        setDrags(elementsArray) {
-            elementsArray.forEach(el => this.drags.push(new Dragit(new DragmeMover(new Dragme(el)))));
-        },
-        deactivate() {
-            if (!this.activated)
-                return;
+                if (elementsArray)
+                    this.setDrags(elementsArray);
 
-            document.removeEventListener('mousedown', this._bindedDragit);
-            document.removeEventListener('mousemove', this._bindedDragmove);
-            document.removeEventListener('mouseup', this._bindedDragstop);
-        },
-        _dragit(evt) {
-            this._findCursorHoveredDrag(getCursor(evt), (drag, cursor) => {
-                drag.dragit(cursor);
-                this.currentDrag = drag;
-            });
-        },
-        _dragmove(evt) {
-            if (!this.currentDrag)
-                return;
+                this.activated = true;
+            },
+            setDrags(elementsArray) {
+                for (let i = 0; i < elementsArray.length; ++i) {
+                    let el;
+                    if (this.seekParent)
+                        el = elementsArray[i].parentNode;
+                    else
+                        el = elementsArray[i];
+                    this.drags.push(new Dragit(new DragmeMover(new Dragme(el))));
+                }
+                // elementsArray.forEach(el => this.drags.push(new Dragit(new DragmeMover(new Dragme(el)))));
+            },
+            deactivate() {
+                if (!this.activated)
+                    return;
 
-            const drag = this._findHoveredDrag(this.currentDrag);
+                document.removeEventListener('mousedown', this._bindedDragit);
+                document.removeEventListener('mousemove', this._bindedDragmove);
+                document.removeEventListener('mouseup', this._bindedDragstop);
 
-            if (drag) {
+                this.activated = false;
+            },
+            _dragit(evt) {
+                this._findCursorHoveredDrag(getCursor(evt), (drag, cursor) => {
+                    drag.dragit(cursor);
+                    this.currentDrag = drag;
+                });
+            },
+            _dragmove(evt) {
+                if (!this.currentDrag)
+                    return;
+
+                const drag = this._findHoveredDrag(this.currentDrag);
+
+                if (drag) {
+                    if (this.hoveredDrag)
+                        this.hoveredDrag.getDragme().removeEmptyRowAFter();
+                    drag.getDragme().insertEmptyRowAfter();
+                    this.hoveredDrag = drag;
+                }
+
+                this.currentDrag.dragmove(getCursor(evt));
+            },
+            _dragstop(evt) {
+                if (!this.currentDrag)
+                    return;
+
+                const drag = this._findHoveredDrag(this.currentDrag);
+
                 if (this.hoveredDrag)
                     this.hoveredDrag.getDragme().removeEmptyRowAFter();
-                drag.getDragme().insertEmptyRowAfter();
-                this.hoveredDrag = drag;
-            }
 
-            this.currentDrag.dragmove(getCursor(evt));
-        },
-        _dragstop(evt) {
-            if (!this.currentDrag)
-                return;
-
-            const drag = this._findHoveredDrag(this.currentDrag);
-
-            if (this.hoveredDrag)
-                this.hoveredDrag.getDragme().removeEmptyRowAFter();
-
-            if (drag) {
-                this.currentDrag.insertDragAfter(drag);
-            }
-
-            this.currentDrag.dragstop(getCursor(evt));
-            this.currentDrag = undefined;
-            this.hoveredDrag = undefined;
-        },
-        _divContainsDrag(drag, div) {
-            const divOffsetRight = div.offsetLeft() + div.offsetWidth();
-            const divOffsetBottom = div.offsetTop() + div.offsetHeight();
-            const dragOffsetLeft = drag.offsetLeft() + (drag.offsetWidth() / 2);
-            const dragOffsetTop = drag.offsetTop() + (drag.offsetHeight() / 2);
-
-            return (dragOffsetLeft >= div.offsetLeft() && dragOffsetLeft <= divOffsetRight) &&
-                (dragOffsetTop >= div.offsetTop() && dragOffsetTop <= divOffsetBottom);
-        },
-        _TargetContainsCursor(cursor, target) {
-            return cursor.X > target.offsetLeft() && cursor.X < target.offsetRight() &&
-                cursor.Y > target.offsetTop() && cursor.Y < target.offsetBottom();
-        },
-        _findCursorHoveredDrag(cursor, cb) {
-            for (let i = 0; i < this.drags.length; ++i) {
-                let drag = this.drags[i];
-                if (this._TargetContainsCursor(cursor, drag.getDragme())) {
-                    if (typeof cb === 'function')
-                        cb(drag, cursor);
-                    break;
+                if (drag) {
+                    this.currentDrag.insertDragAfter(drag);
                 }
-            }
-        },
-        _findHoveredDrag(drag) {
-            return this.drags.find(dr => dr.getDragme() != drag.getDragme() && this._divContainsDrag(drag.getDragme(), dr.getDragme()));
-        }
-    };
 
-    const dragitManager = new DragitManager();
-    dragitManager.activate(document.querySelectorAll('.row'));
-})(this, document);
-</script>
+                this.currentDrag.dragstop(getCursor(evt));
+                this.currentDrag = undefined;
+                this.hoveredDrag = undefined;
+            },
+            _divContainsDrag(drag, div) {
+                const divOffsetRight = div.offsetLeft() + div.offsetWidth();
+                const divOffsetBottom = div.offsetTop() + div.offsetHeight();
+                const dragOffsetLeft = drag.offsetLeft() + (drag.offsetWidth() / 2);
+                const dragOffsetTop = drag.offsetTop() + (drag.offsetHeight() / 2);
+
+                return (dragOffsetLeft >= div.offsetLeft() && dragOffsetLeft < divOffsetRight) &&
+                    (dragOffsetTop >= div.offsetTop() && dragOffsetTop < divOffsetBottom);
+            },
+            _TargetContainsCursor(cursor, target) {
+                return cursor.X > target.offsetLeft() && cursor.X < target.offsetRight() &&
+                    cursor.Y > target.offsetTop() && cursor.Y < target.offsetBottom();
+            },
+            _findCursorHoveredDrag(cursor, cb) {
+                for (let i = 0; i < this.drags.length; ++i) {
+                    let drag = this.drags[i];
+                    if (this._TargetContainsCursor(cursor, drag.getDragme())) {
+                        if (typeof cb === 'function')
+                            cb(drag, cursor);
+                        break;
+                    }
+                }
+            },
+            _findHoveredDrag(drag) {
+                return this.drags.find(dr => dr.getDragme() != drag.getDragme() && this._divContainsDrag(drag.getDragme(), dr.getDragme()));
+            }
+        };
+
+        const HTMLItems = function() {}
+        HTMLItems.prototype = {
+            render() {
+                return this.element;
+            },
+            toString() {
+                return this.render();
+            },
+            width(width, unit) {
+                if (typeof width === 'number')
+                    this.element.style.width = `${width}${unit}`;
+                else
+                    return this.element.style.width;
+            },
+            height(height, unit) {
+                if (typeof height === 'number')
+                    this.element.style.height = `${height}${unit}`;
+                else
+                    return this.element.style.height;
+            },
+            htmlDecode(input) {
+                const elem = document.createElement('textarea');
+                elem.innerHTML = input;
+                return elem.value;
+                //const doc = new DOMParser().parseFromString(input, "text/html");
+                //return doc.documentElement.textContent;
+            }
+
+        }
+
+        const Cell = function() {
+            this.setupCell();
+        }
+        Cell.prototype = {
+            setupCell() {
+                this.element = document.createElement('div');
+                this.element.classList.add('cell');
+            },
+            setEditable(editable, onEdit) {
+                this.editable = editable;
+                this.element.addEventListener('click', onEdit);
+            },
+            setDraggable(draggable) {
+                if (draggable)
+                    this.element.classList.add("draggable");
+                else
+                    this.element.classList.remove("draggable");
+            },
+            cellContent(content) {
+                this.element.innerHTML = content;
+            }
+        };
+
+        const Row = function(head) {
+            this.setupRow(head);
+            this.cells = [];
+        }
+        Row.prototype = {
+            setupRow(head) {
+                this.element = document.createElement('div');
+                let className;
+                if (head)
+                    className = 'head';
+                else
+                    className = 'lonely';
+                this.element.classList.add('row', className);
+            },
+            addCell(cell) {
+                this.cells.push(cell);
+            },
+            render() {
+                if (!this.applied)
+                    this.appendCells();
+                return this.element;
+            },
+            appendCells() {
+                this.applied = true;
+                this.cells.forEach(cell => this.element.append(cell.render()));
+            }
+        };
+
+        Object.setPrototypeOf(Cell.prototype, HTMLItems.prototype);
+        Object.setPrototypeOf(Row.prototype, HTMLItems.prototype);
+
+        const GridMaker = function(parentCnt) {
+            this.parentCnt = parentCnt;
+            this.rows = [];
+        }
+        GridMaker.prototype = {
+            setRows(rows) {
+                for (let i = 0; i < rows.length; ++i) {
+                    this.makeRow(rows[i])
+                }
+            },
+            setDraggable(draggable, byCell) {
+                this.draggable = draggable;
+                this.byCell = byCell;
+            },
+            isDraggable() {
+                return this.draggable;
+            },
+            undragGrid() {
+                this._unsetDraggableGrid();
+            },
+            makeRow(cells, autoWidth, head) {
+                const row = new Row(head);
+                const nbCells = cells.length;
+                let cellWidth;
+                if (autoWidth) {
+                    const parentWidth = this.parentCnt.clientWidth;
+                    cellWidth = (parentWidth / nbCells) - 1;
+                }
+
+                for (let i = 0; i < nbCells; ++i) {
+                    let c = cells[i];
+                    let cell = new Cell();
+                    if (c.hasOwnProperty('width'))
+                        cell.width(c.width, c.unit);
+                    else if (autoWidth)
+                        cell.width(cellWidth, c.unit);
+                    if (c.hasOwnProperty('height'))
+                        cell.height(c.height, c.unit);
+                    if (c.hasOwnProperty('editable'))
+                        cell.setEditable(c.editable, c.onEdit);
+                    if (c.hasOwnProperty('draggit'))
+                        cell.setDraggable(c.draggit)
+                    cell.cellContent(c.content);
+                    row.addCell(cell);
+                }
+
+                this.rows.push(row);
+            },
+            render() {
+                this.rows.forEach(row => this.parentCnt.append(row.render()));
+                if (this.isDraggable())
+                    this._setDraggableGrid();
+            },
+            _setDraggableGrid() {
+                if (!this.dragitManager)
+                    this.dragitManager = new DragitManager();
+                if (!this.byCell)
+                    this.dragitManager.activate(document.querySelectorAll('.row.lonely'));
+                else
+                    this.dragitManager.activate(document.querySelectorAll('.cell.draggable'), true);
+            },
+            _unsetDraggableGrid() {
+                if (!this.dragitManager)
+                    return;
+                this.dragitManager.deactivate();
+            }
+        }
+
+        const parentCnt = document.getElementById('content');
+        const gridMaker = new GridMaker(parentCnt);
+
+        const nbRows = 20;
+        const nbCells = 9;
+
+        gridMaker.setDraggable(true, true);
+
+        for (let i = 0; i < nbRows; ++i) {
+            let cells = [];
+            for (let y = 0; y < nbCells; ++y) {
+                cells.push({
+                    content: makeid(6),
+                    unit: 'px',
+                    editable: true,
+                    onEdit: (value) => {
+                        console.log('edit value', value);
+                    },
+                    draggit: y == 0
+                });
+            }
+            gridMaker.makeRow(cells, true, i == 0);
+        }
+
+        gridMaker.render();
+    })(this, document);
+    </script>
+</body>
