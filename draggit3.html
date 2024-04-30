@@ -26,12 +26,16 @@
         border-left: 1px solid #0f0f0f;
         border-right: 1px solid #0f0f0f;
         user-select: none;
+        overflow: auto;
     }
 
     .row {
         width: 100%;
         border-bottom: 1px solid #0f0f0f;
         background: #f7f8f8;
+        font-size: 16px;
+        height: 2.6%;
+        color: #252525;
     }
 
     .row.head {
@@ -39,7 +43,8 @@
     }
 
     .row:has(.empty), .row.hovered {
-        border-bottom: 2px solid #ff4f4f;
+        border-bottom: 1px solid #ff4f4f;
+        padding-bottom: 32px;
     }
 
     .row:first-child {
@@ -48,7 +53,6 @@
 
     .row.lonely:nth-child(even) {
         background: #bbe3fc;
-        color: #fff;
     }
 
     .row.lonely:nth-child(even):hover {
@@ -69,6 +73,8 @@
 
     .row.dragged {
         border: 1px dashed #0f0f0f;
+        font-size: 12px;
+        height: 2.3%;
         filter: drop-shadow(0 0 8px rgba(85, 85, 85, 0.5));
     }
 
@@ -78,7 +84,16 @@
         vertical-align: top;
         text-align: center;
         padding: 6px 0;
+        box-sizing: border-box;
+        height: 100%;
+    }
+
+    .draggable {
         cursor: move;
+    }
+
+    .row.hovered .cell {
+        border-bottom: 1px solid #ff4f4f;
     }
 
     .head .cell, .cell.editable {
@@ -108,6 +123,15 @@
             return result;
         }
 
+        const getOffsetLeft = (elem) => {
+            let offset = 0;
+            while (elem.parentElement) {
+                    offset += elem.parentElement.offsetLeft;
+                    elem = elem.parentElement;
+            }
+            return offset;
+        }
+
         const getButton = (key) => {
             const buttons = {
                 0: 'uninitialized',
@@ -130,14 +154,57 @@
             }
         }
 
+        const OneEvent = function(callback) {
+            this.callback = callback;
+        }
+        OneEvent.prototype = {
+            trigger(args) {
+                this.callback(...args);
+            }
+        };
+
+        const ListEvents = function() {
+            this._eventsRegistered = [];
+        };
+        ListEvents.prototype = {
+            onEventRegister({cb, subscriber}, eventKey) {
+                this._eventsRegistered.push({'eventKey': eventKey, 'subscriber': subscriber,  'event': new OneEvent(cb)});
+            },
+            unsubscribeEVent({eventKey, subscriber}) {
+                const subInedx = this._eventsRegistered.findIndex(evt => evt.subscriber == subscriber && evt.eventKey == eventKey);
+                if (typeof subInedx === 'undefined')
+                    return;
+                this._eventsRegistered.splice(subInedx, 1);
+            },
+            trigger(eventKey, ...args) {
+                args = args || [];
+                this._onEventTrigger(eventKey, args);
+            },
+            _onEventTrigger(eventKey, args) {
+                const evts = this._eventsRegistered.filter(evt => evt.eventKey == eventKey);
+                if (evts.length == 0)
+                    return;
+                for (let i = 0; i < evts.length; ++i) {
+                    evts[i].event.trigger(args);
+                }
+            },
+            _checkEventKey(eventKey) {
+                const indx = this._eventsRegistered.findIndex(evt => evt.eventKey == eventKey);
+                if (indx != -1) {
+                    console.error(`Event ${eventKey} already register`);
+                    throw `Event ${eventKey} already register`;
+                }
+            },
+        };
+
         const DragmeMover = function(dragme) {
             this.dragme = dragme;
         }
         DragmeMover.prototype = {
-            init() {
-                return this.dragme.init();
+            init(seekParent) {
+                return this.dragme.init(seekParent);
             },
-            moveTo(x, y) {
+            moveTo(x, y, seekParent) {
                 if (this.prevX && this.prevY) {
                     let dragX = this.dragme.offsetLeft() + (x - this.prevX),
                         dragY = this.dragme.offsetTop() + (y - this.prevY);
@@ -163,10 +230,10 @@
 
                 this.prevY = y;
             },
-            done() {
+            done(seekParent) {
                 this.prevX = undefined;
                 this.prevY = undefined;
-                this.dragme.reset();
+                this.dragme.reset(seekParent);
             },
             getDragme() {
                 return this.dragme;
@@ -177,13 +244,16 @@
             this.dragElem = dragElem;
         }
         Dragme.prototype = {
-            getDragElem() {
+            getDragElem(getReal, seekParent) {
+                if (getReal && seekParent)
+                    return this.dragElem.querySelector('.draggable');
                 return this.dragElem;
             },
-            init() {
+            init(seekParent) {
                 if (!this.dragElem)
                     return false;
-
+                if (seekParent)
+                    this.setSeekParent();
                 this.dragElem.style.position = 'absolute';
                 this.dragElem.style.left = `${this.offsetLeft()}px`;
                 this.dragElem.style.top = `${this.offsetTop()}px`;
@@ -192,20 +262,30 @@
 
                 return true;
             },
-            reset() {
+            reset(seekParent) {
                 if (this.emptyRow)
                     this._removeEmptyRow();
                 this.dragElem.style = {};
                 this.dragElem.classList.remove('dragged');
+                if (seekParent)
+                    this.unsetSeekParent();
             },
             offsetTop() {
                 return this.dragElem.offsetTop;
             },
-            offsetLeft() {
-                return this.dragElem.offsetLeft;
+            offsetLeft(doMargin) {
+                let margin = 0;
+                if (doMargin) {
+                    margin = getOffsetLeft(this.dragElem);
+                }
+                return this.dragElem.offsetLeft + margin;
             },
-            offsetRight() {
-                return this.dragElem.offsetLeft + this.dragElem.offsetWidth
+            offsetRight(doMargin) {
+                let margin = 0;
+                if (doMargin) {
+                    margin = getOffsetLeft(this.dragElem);
+                }
+                return this.dragElem.offsetLeft + this.dragElem.offsetWidth + margin;
             },
             offsetBottom() {
                 return this.dragElem.offsetTop + this.dragElem.offsetHeight;
@@ -231,6 +311,12 @@
             setLeftTop(left, top) {
                 this.dragElem.style.left = `${left}px`;
                 this.dragElem.style.top = `${top}px`;
+            },
+            setSeekParent() {
+                this.dragElem =  this.dragElem.parentNode;
+            },
+            unsetSeekParent() {
+                this.dragElem = this.dragElem.querySelector('.draggable');
             },
             setHovered() {
                 this.dragElem.classList.toggle('hovered')
@@ -267,26 +353,47 @@
             getDragMover() {
                 return this.dragMover;
             },
-            getDragme() {
+            getDragme(seekParent) {
                 return this.dragMover.getDragme();
             },
-            dragit(cursor) {
+            setDragmeSeekParent() {
+                this.dragMover.getDragme().setSeekParent();
+            },
+            unsetDragmeSeekParent() {
+                this.dragMover.getDragme().unsetSeekParent();
+            },
+            dragit(cursor, seekParent) {
                 if (cursor.buttons != 'leftClick')
                     return;
 
                 if (!this._isInit)
-                    this._init();
+                    this._init(seekParent);
                 this.pressed = true;
+
+                const dragmeEl = this.getDragme().getDragElem(true, seekParent);
+
+                if (typeof dragmeEl.onDragged === 'function')
+                    dragmeEl.onDragged();
+                //dragElemt.dispatchEvent(this.onDraggedEvt);
+
                 this.dragMover.moveTo(cursor.X, cursor.Y);
             },
-            dragmove(cursor) {
+            dragmove(cursor, seekParent) {
                 if (this.pressed)
-                    this.dragit(cursor);
+                    this.dragit(cursor, seekParent);
             },
-            dragstop(cursor) {
+            dragstop(cursor, seekParent) {
                 if (!this.pressed)
                     return;
-                this._finish();
+
+                const dragmeEl = this.getDragme().getDragElem(true, seekParent);
+
+                if (typeof dragmeEl.onDropped === 'function')
+                    dragmeEl.onDropped();
+
+                //dragmeEl.dispatchEvent(this.onDroppedEvt);
+
+                this._finish(seekParent);
             },
             insertDragAfter(drag) {
                 this.getDragme().insertDragAfter(drag.getDragme());
@@ -294,13 +401,13 @@
             setHovered(hovered) {
                this.getDragme().setHovered(hovered)
             },
-            _init() {
-                this._isInit = this.dragMover.init();
+            _init(seekParent) {
+                this._isInit = this.dragMover.init(seekParent);
             },
-            _finish() {
+            _finish(seekParent) {
                 this.pressed = false;
                 this._isInit = false;
-                this.dragMover.done();
+                this.dragMover.done(seekParent);
                 if (this.onFinish && typeof this.onFinish === 'function')
                     this.onFinish(this);
             }
@@ -328,12 +435,7 @@
             },
             setDrags(elementsArray) {
                 for (let i = 0; i < elementsArray.length; ++i) {
-                    let el;
-                    if (this.seekParent)
-                        el = elementsArray[i].parentNode;
-                    else
-                        el = elementsArray[i];
-                    this.drags.push(new Dragit(new DragmeMover(new Dragme(el))));
+                    this.drags.push(new Dragit(new DragmeMover(new Dragme(elementsArray[i]))));
                 }
                 // elementsArray.forEach(el => this.drags.push(new Dragit(new DragmeMover(new Dragme(el)))));
             },
@@ -349,7 +451,7 @@
             },
             _dragit(evt) {
                 this._findCursorHoveredDrag(getCursor(evt), (drag, cursor) => {
-                    drag.dragit(cursor);
+                    drag.dragit(cursor, this.seekParent);
                     this.currentDrag = drag;
                 });
             },
@@ -360,13 +462,22 @@
                 const drag = this._findHoveredDrag(this.currentDrag);
 
                 if (drag) {
-                    if (this.hoveredDrag)
-                        this.hoveredDrag.getDragme().removeEmptyRowAFter();
-                    drag.getDragme().insertEmptyRowAfter();
+                    if (this.hoveredDrag) {
+                        if (this.seekParent)
+                            this.hoveredDrag.setDragmeSeekParent();
+                        this.hoveredDrag.getDragme().setHovered();
+                        if (this.seekParent)
+                            this.hoveredDrag.unsetDragmeSeekParent();
+                    }
+                    if (this.seekParent)
+                        drag.setDragmeSeekParent();
+                    drag.getDragme().setHovered();
+                    if (this.seekParent)
+                        drag.unsetDragmeSeekParent();
                     this.hoveredDrag = drag;
                 }
 
-                this.currentDrag.dragmove(getCursor(evt));
+                this.currentDrag.dragmove(getCursor(evt), this.seekParent);
             },
             _dragstop(evt) {
                 if (!this.currentDrag)
@@ -374,14 +485,22 @@
 
                 const drag = this._findHoveredDrag(this.currentDrag);
 
-                if (this.hoveredDrag)
-                    this.hoveredDrag.getDragme().removeEmptyRowAFter();
-
+                if (this.hoveredDrag) {
+                     if (this.seekParent)
+                        this.hoveredDrag.setDragmeSeekParent();
+                    this.hoveredDrag.getDragme().setHovered();
+                    if (this.seekParent)
+                        this.hoveredDrag.unsetDragmeSeekParent();
+                }
                 if (drag) {
+                    if (this.seekParent)
+                        drag.setDragmeSeekParent();
                     this.currentDrag.insertDragAfter(drag);
+                    if (this.seekParent)
+                        drag.unsetDragmeSeekParent();
                 }
 
-                this.currentDrag.dragstop(getCursor(evt));
+                this.currentDrag.dragstop(getCursor(evt), this.seekParent);
                 this.currentDrag = undefined;
                 this.hoveredDrag = undefined;
             },
@@ -395,7 +514,7 @@
                     (dragOffsetTop >= div.offsetTop() && dragOffsetTop < divOffsetBottom);
             },
             _TargetContainsCursor(cursor, target) {
-                return cursor.X > target.offsetLeft() && cursor.X < target.offsetRight() &&
+                return cursor.X > target.offsetLeft(true) && cursor.X < target.offsetRight(true) &&
                     cursor.Y > target.offsetTop() && cursor.Y < target.offsetBottom();
             },
             _findCursorHoveredDrag(cursor, cb) {
@@ -409,12 +528,35 @@
                 }
             },
             _findHoveredDrag(drag) {
-                return this.drags.find(dr => dr.getDragme() != drag.getDragme() && this._divContainsDrag(drag.getDragme(), dr.getDragme()));
+                let foundDrag;
+                for (let i = 0; i < this.drags.length; ++i) {
+                    let dr = this.drags[i];
+                    if (dr.getDragme() == drag.getDragme())
+                        continue;
+                    if (this.seekParent)
+                        dr.setDragmeSeekParent();
+                    if (this._divContainsDrag(drag.getDragme(), dr.getDragme())) {
+                        if (this.seekParent)
+                            dr.unsetDragmeSeekParent();
+                        foundDrag = dr;
+                        break;
+                    }
+                    if (this.seekParent)
+                        dr.unsetDragmeSeekParent();
+                }
+
+                return foundDrag;
             }
         };
 
-        const HTMLItems = function() {}
+        const HTMLItems = function(elementName) {
+            this.element = document.createElement(elementName);
+            this._handleEvents();
+        }
         HTMLItems.prototype = {
+            super() {
+                return HTMLItems;
+            },
             render() {
                 return this.element;
             },
@@ -433,22 +575,25 @@
                 else
                     return this.element.style.height;
             },
-            htmlDecode(input) {
-                const elem = document.createElement('textarea');
-                elem.innerHTML = input;
-                return elem.value;
-                //const doc = new DOMParser().parseFromString(input, "text/html");
-                //return doc.documentElement.textContent;
+            onDragged(cb) {
+                this.element.onDragged = cb.bind(undefined, this.onDraggedEvt);
+            },
+            onDropped(cb) {
+                this.element.onDropped = cb.bind(undefined, this.onDroppedEvt);
+            },
+            _handleEvents() {
+                this.onDraggedEvt = new CustomEvent('dragged', {detail: {HTMLItem: this}});
+                this.onDroppedEvt = new CustomEvent('dropped', {detail: {HTMLItem: this}});
             }
-
         }
 
         const Cell = function() {
+            this.super().call(this, 'div');
             this.setupCell();
+            this._eventManager = new ListEvents();
         }
         Cell.prototype = {
             setupCell() {
-                this.element = document.createElement('div');
                 this.element.classList.add('cell');
             },
             setEditable(editable, onEdit) {
@@ -467,12 +612,13 @@
         };
 
         const Row = function(head) {
+            this.super().call(this, 'div');
             this.setupRow(head);
             this.cells = [];
+            this._isHead = head;
         }
         Row.prototype = {
             setupRow(head) {
-                this.element = document.createElement('div');
                 let className;
                 if (head)
                     className = 'head';
@@ -483,10 +629,20 @@
             addCell(cell) {
                 this.cells.push(cell);
             },
+            isHead() {
+                return this._isHead;
+            },
             render() {
                 if (!this.applied)
                     this.appendCells();
                 return this.element;
+            },
+            setDraggable(draggable) {
+                if (draggable)
+                    this.element.classList.add('draggable');
+                else
+                    this.element.classList.remove('draggable');
+                this.draggable = draggable;
             },
             appendCells() {
                 this.applied = true;
@@ -522,8 +678,7 @@
                 const nbCells = cells.length;
                 let cellWidth;
                 if (autoWidth) {
-                    const parentWidth = this.parentCnt.clientWidth;
-                    cellWidth = (parentWidth / nbCells) - 1;
+                    cellWidth = (this.parentCnt.clientWidth / nbCells);
                 }
 
                 for (let i = 0; i < nbCells; ++i) {
@@ -535,14 +690,19 @@
                         cell.width(cellWidth, c.unit);
                     if (c.hasOwnProperty('height'))
                         cell.height(c.height, c.unit);
-                    if (c.hasOwnProperty('editable'))
+                    if (c.hasOwnProperty('editable') && c.editable)
                         cell.setEditable(c.editable, c.onEdit);
-                    if (c.hasOwnProperty('draggit'))
-                        cell.setDraggable(c.draggit)
+                    if (c.hasOwnProperty('draggit') && this.byCell) {
+                        cell.setDraggable(c.draggit);
+                        cell.onDragged(c.onDragged);
+                        cell.onDropped(c.onDropped);
+                    }
                     cell.cellContent(c.content);
                     row.addCell(cell);
                 }
 
+                if (!this.byCell)
+                    row.setDraggable(this.draggable);
                 this.rows.push(row);
             },
             render() {
@@ -565,8 +725,7 @@
             }
         }
 
-        const parentCnt = document.getElementById('content');
-        const gridMaker = new GridMaker(parentCnt);
+        const gridMaker = new GridMaker(document.getElementById('content'));
 
         const nbRows = 20;
         const nbCells = 9;
@@ -577,13 +736,19 @@
             let cells = [];
             for (let y = 0; y < nbCells; ++y) {
                 cells.push({
-                    content: makeid(6),
+                    content: y == nbCells - 1 ? 'Dragme!' : makeid(6),
                     unit: 'px',
-                    editable: true,
+                    editable: false,
                     onEdit: (value) => {
                         console.log('edit value', value);
                     },
-                    draggit: y == 0
+                    draggit: y == nbCells - 1 && i > 0,
+                    onDragged: (evt) => {
+                        evt.detail.HTMLItem.cellContent('Dropme!');
+                    },
+                    onDropped: (evt) => {
+                        evt.detail.HTMLItem.cellContent('Dragme!');
+                    }
                 });
             }
             gridMaker.makeRow(cells, true, i == 0);
