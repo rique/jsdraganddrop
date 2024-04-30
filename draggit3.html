@@ -3,6 +3,17 @@
 <head>
     <title>Dragit!</title>
     <style>
+    @keyframes stretchdown {
+        from {
+            padding-bottom: 0px;
+            border-bottom: 0px;
+        }
+        to {
+            padding-bottom: 32px;
+            border-bottom: 1px solid #ff4f4f;
+        }
+    }
+
     * {
         margin: 0;
         padding: 0;
@@ -40,11 +51,15 @@
 
     .row.head {
         font-weight: bold;
+        position: sticky;
+        top: 0;
+        left: 0;
     }
 
     .row:has(.empty), .row.hovered {
-        border-bottom: 1px solid #ff4f4f;
-        padding-bottom: 32px;
+        /*padding-bottom: 32px;
+        border-bottom: 1px solid #ff4f4f;*/
+        animation: 70ms 1 forwards stretchdown
     }
 
     .row:first-child {
@@ -76,6 +91,7 @@
         font-size: 12px;
         height: 2.3%;
         filter: drop-shadow(0 0 8px rgba(85, 85, 85, 0.5));
+        filter: opacity(78%);
     }
 
     .cell {
@@ -130,6 +146,14 @@
                     elem = elem.parentElement;
             }
             return offset;
+        }
+
+        getDeepParent = (elem) => {
+            while(elem.parentElement && elem.parentElement != document.body) {
+                elem = elem.parentElement;
+            }
+
+            return elem;
         }
 
         const getButton = (key) => {
@@ -217,7 +241,7 @@
             moveXTo(x) {
                 if (this.prevX) {
                     let dragX = this.dragme.offsetLeft() + (x - this.prevX);
-                    requestAnimationFrame(this.dragme.setLeft.bind(this.dragme, dragX));
+                    requestAnimationFrame(this.dragme.left.bind(this.dragme, dragX, 'px'));
                 }
 
                 this.prevX = x;
@@ -225,122 +249,20 @@
             moveYTo(y) {
                 if (this.prevY) {
                     let dragY = this.dragme.offsetLeft() + (y - this.prevY);
-                    requestAnimationFrame(this.dragme.setTop.bind(this.dragme, dragY));
+                    requestAnimationFrame(this.dragme.top.bind(this.dragme, dragY, 'px'));
                 }
 
                 this.prevY = y;
             },
-            done(seekParent) {
+            done() {
                 this.prevX = undefined;
                 this.prevY = undefined;
-                this.dragme.reset(seekParent);
+                this.dragme.reset();
             },
             getDragme() {
                 return this.dragme;
             }
         };
-
-        const Dragme = function(dragElem) {
-            this.dragElem = dragElem;
-        }
-        Dragme.prototype = {
-            getDragElem(getReal, seekParent) {
-                if (getReal && seekParent)
-                    return this.dragElem.querySelector('.draggable');
-                return this.dragElem;
-            },
-            init(seekParent) {
-                if (!this.dragElem)
-                    return false;
-                if (seekParent)
-                    this.setSeekParent();
-                this.dragElem.style.position = 'absolute';
-                this.dragElem.style.left = `${this.offsetLeft()}px`;
-                this.dragElem.style.top = `${this.offsetTop()}px`;
-                this.dragElem.style.zIndex= 100;
-                this.dragElem.classList.add('dragged');
-
-                return true;
-            },
-            reset(seekParent) {
-                if (this.emptyRow)
-                    this._removeEmptyRow();
-                this.dragElem.style = {};
-                this.dragElem.classList.remove('dragged');
-                if (seekParent)
-                    this.unsetSeekParent();
-            },
-            offsetTop() {
-                return this.dragElem.offsetTop;
-            },
-            offsetLeft(doMargin) {
-                let margin = 0;
-                if (doMargin) {
-                    margin = getOffsetLeft(this.dragElem);
-                }
-                return this.dragElem.offsetLeft + margin;
-            },
-            offsetRight(doMargin) {
-                let margin = 0;
-                if (doMargin) {
-                    margin = getOffsetLeft(this.dragElem);
-                }
-                return this.dragElem.offsetLeft + this.dragElem.offsetWidth + margin;
-            },
-            offsetBottom() {
-                return this.dragElem.offsetTop + this.dragElem.offsetHeight;
-            },
-            offsetWidth() {
-                return this.dragElem.offsetWidth;
-            },
-            offsetHeight() {
-                return this.dragElem.offsetHeight;
-            },
-            left() {
-                return this.dragElem.style.left;
-            },
-            top() {
-                return this.dragElem.style.top;
-            },
-            setLeft(left) {
-                this.dragElem.style.left = `${left}px`;
-            },
-            setTop(top) {
-                this.dragElem.style.top = `${top}px`;
-            },
-            setLeftTop(left, top) {
-                this.dragElem.style.left = `${left}px`;
-                this.dragElem.style.top = `${top}px`;
-            },
-            setSeekParent() {
-                this.dragElem =  this.dragElem.parentNode;
-            },
-            unsetSeekParent() {
-                this.dragElem = this.dragElem.querySelector('.draggable');
-            },
-            setHovered() {
-                this.dragElem.classList.toggle('hovered')
-            },
-            insertDragAfter(drag) {
-                drag.getDragElem().insertAdjacentElement('afterend', this.dragElem);
-            },
-            insertEmptyRowAfter() {
-                if (!this.emptyRow)
-                    this._setUpEmptyRow();
-
-                this.dragElem.append(this.emptyRow);
-            },
-            removeEmptyRowAFter() {
-                if (!this.emptyRow)
-                    return;
-                this.emptyRow.remove();
-                this.emptyRow = undefined;
-            },
-            _setUpEmptyRow() {
-                this.emptyRow = document.createElement('div');
-                this.emptyRow.className = 'empty';
-            }
-        }
 
         const Dragit = function(dragMover) {
             this.dragMover = dragMover;
@@ -370,11 +292,7 @@
                     this._init(seekParent);
                 this.pressed = true;
 
-                const dragmeEl = this.getDragme().getDragElem(true, seekParent);
-
-                if (typeof dragmeEl.onDragged === 'function')
-                    dragmeEl.onDragged();
-                //dragElemt.dispatchEvent(this.onDraggedEvt);
+                this.getDragme().dispatchEvent('dragged');
 
                 this.dragMover.moveTo(cursor.X, cursor.Y);
             },
@@ -382,18 +300,13 @@
                 if (this.pressed)
                     this.dragit(cursor, seekParent);
             },
-            dragstop(cursor, seekParent) {
+            dragstop(cursor) {
                 if (!this.pressed)
                     return;
 
-                const dragmeEl = this.getDragme().getDragElem(true, seekParent);
+                this.getDragme().dispatchEvent('dropped');
 
-                if (typeof dragmeEl.onDropped === 'function')
-                    dragmeEl.onDropped();
-
-                //dragmeEl.dispatchEvent(this.onDroppedEvt);
-
-                this._finish(seekParent);
+                this._finish();
             },
             insertDragAfter(drag) {
                 this.getDragme().insertDragAfter(drag.getDragme());
@@ -404,10 +317,10 @@
             _init(seekParent) {
                 this._isInit = this.dragMover.init(seekParent);
             },
-            _finish(seekParent) {
+            _finish() {
                 this.pressed = false;
                 this._isInit = false;
-                this.dragMover.done(seekParent);
+                this.dragMover.done();
                 if (this.onFinish && typeof this.onFinish === 'function')
                     this.onFinish(this);
             }
@@ -435,9 +348,8 @@
             },
             setDrags(elementsArray) {
                 for (let i = 0; i < elementsArray.length; ++i) {
-                    this.drags.push(new Dragit(new DragmeMover(new Dragme(elementsArray[i]))));
+                    this.drags.push(new Dragit(new DragmeMover(elementsArray[i])));
                 }
-                // elementsArray.forEach(el => this.drags.push(new Dragit(new DragmeMover(new Dragme(el)))));
             },
             deactivate() {
                 if (!this.activated)
@@ -514,8 +426,8 @@
                     (dragOffsetTop >= div.offsetTop() && dragOffsetTop < divOffsetBottom);
             },
             _TargetContainsCursor(cursor, target) {
-                return cursor.X > target.offsetLeft(true) && cursor.X < target.offsetRight(true) &&
-                    cursor.Y > target.offsetTop() && cursor.Y < target.offsetBottom();
+                return (cursor.X + target.scrollLeft()) > target.offsetLeft(true) && (cursor.X + target.scrollLeft()) < target.offsetRight(true) &&
+                    (cursor.Y + target.scrollTop()) > target.offsetTop() && (cursor.Y + target.scrollTop()) < target.offsetBottom();
             },
             _findCursorHoveredDrag(cursor, cb) {
                 for (let i = 0; i < this.drags.length; ++i) {
@@ -549,19 +461,19 @@
             }
         };
 
-        const HTMLItems = function(elementName) {
+        const HTMLDraggableItems = function(elementName) {
             this.element = document.createElement(elementName);
             this._handleEvents();
         }
-        HTMLItems.prototype = {
+        HTMLDraggableItems.prototype = {
             super() {
-                return HTMLItems;
+                return HTMLDraggableItems;
             },
-            render() {
+            render(getReal) {
+                if (getReal && this.seekParent) {
+                    return this.element.querySelector('.draggable');
+                }
                 return this.element;
-            },
-            toString() {
-                return this.render();
             },
             width(width, unit) {
                 if (typeof width === 'number')
@@ -575,11 +487,134 @@
                 else
                     return this.element.style.height;
             },
+            left(left, unit) {
+                if (typeof left === 'number')
+                    this.element.style.left = `${left}${unit}`;
+                else
+                    return this.element.style.left;
+            },
+            top(top, unit) {
+                if (typeof top === 'number')
+                    this.element.style.top = `${top}${unit}`;
+                else
+                    return this.element.style.top;
+            },
+            offsetTop() {
+                return this.element.offsetTop;
+            },
+            offsetLeft(doMargin) {
+                let margin = 0;
+                if (doMargin) {
+                    margin = getOffsetLeft(this.element);
+                    margin += this.scrollLeft();
+                }
+                return this.element.offsetLeft + margin;
+            },
+            offsetRight(doMargin) {
+                let margin = 0;
+                if (doMargin) {
+                    margin = getOffsetLeft(this.element);
+                }
+                return this.element.offsetLeft + this.element.offsetWidth + margin;
+            },
+            offsetBottom() {
+                return this.element.offsetTop + this.element.offsetHeight;
+            },
+            offsetWidth() {
+                return this.element.offsetWidth;
+            },
+            offsetHeight() {
+                return this.element.offsetHeight;
+            },
+            setLeftTop(left, top) {
+                this.element.style.left = `${left}px`;
+                this.element.style.top = `${top}px`;
+            },
+            scrollTop() {
+                const parentElem = getDeepParent(this.element);
+                return parentElem.scrollTop;
+            },
+            scrollLeft() {
+                const parentElem = getDeepParent(this.element);
+                return parentElem.scrollLeft;
+            },
+            innerContent(content) {
+               this.render(true).innerHTML = content;
+            },
+            css(style, replace) {
+                style = style || {};
+                if (!replace)
+                    style = {...this.element.style, ...style};
+
+                Object.keys(style).forEach(k => this.element.style[k] = style[k]);
+            },
+            setSeekParent() {
+                this.seekParent = true;
+                this.element =  this.element.parentElement;
+            },
+            unsetSeekParent() {
+                this.seekParent = false;
+                this.element = this.element.querySelector('.draggable');
+            },
+            setHovered() {
+                this.element.classList.toggle('hovered')
+            },
+            insertDragAfter(thisInstance) {
+                thisInstance.element.insertAdjacentElement('afterend', this.render());
+            },
+            setDraggable(draggable) {
+                if (draggable)
+                    this.element.classList.add('draggable');
+                else
+                    this.element.classList.remove('draggable');
+                this.draggable = draggable;
+            },
             onDragged(cb) {
-                this.element.onDragged = cb.bind(undefined, this.onDraggedEvt);
+                this.element.addEventListener('dragged', cb);
             },
             onDropped(cb) {
-                this.element.onDropped = cb.bind(undefined, this.onDroppedEvt);
+                this.element.addEventListener('dropped', cb);
+            },
+            isDraggable() {
+                return this.draggable;
+            },
+            init(seekParent) {
+                if (!this.element)
+                    return false;
+
+                if (seekParent)
+                    this.setSeekParent();
+
+                this.css({
+                    position: 'absolute',
+                    left: `${this.offsetLeft()}px`,
+                    top: `${this.offsetTop()}px`,
+                    zIndex: 100,
+                });
+
+                this.element.classList.add('dragged');
+
+                return true;
+            },
+            reset() {
+                this.css({
+                    position: 'static',
+                });
+
+                this.element.classList.remove('dragged');
+
+                if (this.seekParent)
+                    this.unsetSeekParent();
+            },
+            dispatchEvent(evtName) {
+                switch(evtName) {
+                    case 'dragged':
+                        this.render(true).dispatchEvent(this.onDraggedEvt);
+                        break;
+                    case 'dropped':
+                        this.render(true).dispatchEvent(this.onDroppedEvt);
+                        break;
+                }
             },
             _handleEvents() {
                 this.onDraggedEvt = new CustomEvent('dragged', {detail: {HTMLItem: this}});
@@ -599,28 +634,19 @@
             setEditable(editable, onEdit) {
                 this.editable = editable;
                 this.element.addEventListener('click', onEdit);
-            },
-            setDraggable(draggable) {
-                if (draggable)
-                    this.element.classList.add("draggable");
-                else
-                    this.element.classList.remove("draggable");
-            },
-            cellContent(content) {
-                this.element.innerHTML = content;
             }
         };
 
         const Row = function(head) {
             this.super().call(this, 'div');
-            this.setupRow(head);
             this.cells = [];
             this._isHead = head;
+            this.setupRow();
         }
         Row.prototype = {
-            setupRow(head) {
+            setupRow() {
                 let className;
-                if (head)
+                if (this._isHead)
                     className = 'head';
                 else
                     className = 'lonely';
@@ -637,21 +663,17 @@
                     this.appendCells();
                 return this.element;
             },
-            setDraggable(draggable) {
-                if (draggable)
-                    this.element.classList.add('draggable');
-                else
-                    this.element.classList.remove('draggable');
-                this.draggable = draggable;
-            },
             appendCells() {
                 this.applied = true;
                 this.cells.forEach(cell => this.element.append(cell.render()));
+            },
+            getCells() {
+                return this.cells;
             }
         };
 
-        Object.setPrototypeOf(Cell.prototype, HTMLItems.prototype);
-        Object.setPrototypeOf(Row.prototype, HTMLItems.prototype);
+        Object.setPrototypeOf(Cell.prototype, HTMLDraggableItems.prototype);
+        Object.setPrototypeOf(Row.prototype, HTMLDraggableItems.prototype);
 
         const GridMaker = function(parentCnt) {
             this.parentCnt = parentCnt;
@@ -684,24 +706,27 @@
                 for (let i = 0; i < nbCells; ++i) {
                     let c = cells[i];
                     let cell = new Cell();
+
                     if (c.hasOwnProperty('width'))
                         cell.width(c.width, c.unit);
                     else if (autoWidth)
-                        cell.width(cellWidth, c.unit);
+                        cell.width(cellWidth, 'px');
+
                     if (c.hasOwnProperty('height'))
                         cell.height(c.height, c.unit);
                     if (c.hasOwnProperty('editable') && c.editable)
                         cell.setEditable(c.editable, c.onEdit);
-                    if (c.hasOwnProperty('draggit') && this.byCell) {
+                    if (c.hasOwnProperty('draggit') && this.byCell && !row.isHead()) {
                         cell.setDraggable(c.draggit);
                         cell.onDragged(c.onDragged);
                         cell.onDropped(c.onDropped);
                     }
-                    cell.cellContent(c.content);
+
+                    cell.innerContent(c.content);
                     row.addCell(cell);
                 }
 
-                if (!this.byCell)
+                if (!this.byCell && !row.isHead())
                     row.setDraggable(this.draggable);
                 this.rows.push(row);
             },
@@ -710,13 +735,24 @@
                 if (this.isDraggable())
                     this._setDraggableGrid();
             },
+            getDraggableRows() {
+                return this.rows.filter(r => r.isDraggable());
+            },
+            getDraggableCells() {
+                const cells = [];
+                for (let i = 0; i < this.rows.length; ++i) {
+                    let row = this.rows[i];
+                    cells.push(...row.getCells().filter(c => c.isDraggable()))
+                }
+                return cells;
+            },
             _setDraggableGrid() {
                 if (!this.dragitManager)
                     this.dragitManager = new DragitManager();
                 if (!this.byCell)
-                    this.dragitManager.activate(document.querySelectorAll('.row.lonely'));
+                    this.dragitManager.activate(this.getDraggableRows());
                 else
-                    this.dragitManager.activate(document.querySelectorAll('.cell.draggable'), true);
+                    this.dragitManager.activate(this.getDraggableCells(), true);
             },
             _unsetDraggableGrid() {
                 if (!this.dragitManager)
@@ -727,7 +763,7 @@
 
         const gridMaker = new GridMaker(document.getElementById('content'));
 
-        const nbRows = 20;
+        const nbRows = 260;
         const nbCells = 9;
 
         gridMaker.setDraggable(true, true);
@@ -736,7 +772,7 @@
             let cells = [];
             for (let y = 0; y < nbCells; ++y) {
                 cells.push({
-                    content: y == nbCells - 1 ? 'Dragme!' : makeid(6),
+                    content: y == nbCells - 1 ? 'Dragme!!' : makeid(6),
                     unit: 'px',
                     editable: false,
                     onEdit: (value) => {
@@ -744,10 +780,10 @@
                     },
                     draggit: y == nbCells - 1 && i > 0,
                     onDragged: (evt) => {
-                        evt.detail.HTMLItem.cellContent('Dropme!');
+                        evt.detail.HTMLItem.innerContent('Dropme!!');
                     },
                     onDropped: (evt) => {
-                        evt.detail.HTMLItem.cellContent('Dragme!');
+                        evt.detail.HTMLItem.innerContent('Dragme!!');
                     }
                 });
             }
