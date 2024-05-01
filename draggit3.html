@@ -57,8 +57,6 @@
     }
 
     .row:has(.empty), .row.hovered {
-        /*padding-bottom: 32px;
-        border-bottom: 1px solid #ff4f4f;*/
         animation: 70ms 1 forwards stretchdown
     }
 
@@ -129,11 +127,11 @@
     <script>
     (function(window, document, undefined) {
 
-        const makeid = (length) => {
-            var result           = '';
-            var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-';
-            var charactersLength = characters.length;
-            for ( var i = 0; i < length; i++ ) {
+        const randomStr = (length) => {
+            let result = '',
+                characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-',
+                charactersLength = characters.length;
+            for (let i = 0; i < length; ++i) {
                 result += characters.charAt(Math.floor(Math.random() * charactersLength));
             }
             return result;
@@ -148,7 +146,7 @@
             return offset;
         }
 
-        getDeepParent = (elem) => {
+        getLastParent = (elem) => {
             while(elem.parentElement && elem.parentElement != document.body) {
                 elem = elem.parentElement;
             }
@@ -264,11 +262,11 @@
             }
         };
 
-        const Dragit = function(dragMover) {
+        const DragIt = function(dragMover) {
             this.dragMover = dragMover;
             this.pressed = false;
         }
-        Dragit.prototype = {
+        DragIt.prototype = {
             setDragMover(dragMover) {
                 this.dragMover = dragMover;
             },
@@ -311,8 +309,8 @@
             insertDragAfter(drag) {
                 this.getDragme().insertDragAfter(drag.getDragme());
             },
-            setHovered(hovered) {
-               this.getDragme().setHovered(hovered)
+            toggleHovered(hovered) {
+               this.getDragme().toggleHovered(hovered)
             },
             _init(seekParent) {
                 this._isInit = this.dragMover.init(seekParent);
@@ -348,7 +346,7 @@
             },
             setDrags(elementsArray) {
                 for (let i = 0; i < elementsArray.length; ++i) {
-                    this.drags.push(new Dragit(new DragmeMover(elementsArray[i])));
+                    this.drags.push(new DragIt(new DragmeMover(elementsArray[i])));
                 }
             },
             deactivate() {
@@ -377,13 +375,13 @@
                     if (this.hoveredDrag) {
                         if (this.seekParent)
                             this.hoveredDrag.setDragmeSeekParent();
-                        this.hoveredDrag.getDragme().setHovered();
+                        this.hoveredDrag.getDragme().toggleHovered();
                         if (this.seekParent)
                             this.hoveredDrag.unsetDragmeSeekParent();
                     }
                     if (this.seekParent)
                         drag.setDragmeSeekParent();
-                    drag.getDragme().setHovered();
+                    drag.getDragme().toggleHovered();
                     if (this.seekParent)
                         drag.unsetDragmeSeekParent();
                     this.hoveredDrag = drag;
@@ -400,7 +398,7 @@
                 if (this.hoveredDrag) {
                      if (this.seekParent)
                         this.hoveredDrag.setDragmeSeekParent();
-                    this.hoveredDrag.getDragme().setHovered();
+                    this.hoveredDrag.getDragme().toggleHovered();
                     if (this.seekParent)
                         this.hoveredDrag.unsetDragmeSeekParent();
                 }
@@ -417,17 +415,17 @@
                 this.hoveredDrag = undefined;
             },
             _divContainsDrag(drag, div) {
-                const divOffsetRight = div.offsetLeft() + div.offsetWidth();
-                const divOffsetBottom = div.offsetTop() + div.offsetHeight();
                 const dragOffsetLeft = drag.offsetLeft() + (drag.offsetWidth() / 2);
                 const dragOffsetTop = drag.offsetTop() + (drag.offsetHeight() / 2);
 
-                return (dragOffsetLeft >= div.offsetLeft() && dragOffsetLeft < divOffsetRight) &&
-                    (dragOffsetTop >= div.offsetTop() && dragOffsetTop < divOffsetBottom);
+                return (dragOffsetLeft >= div.offsetLeft() && dragOffsetLeft < div.offsetRight()) &&
+                    (dragOffsetTop >= div.offsetTop() && dragOffsetTop < div.offsetBottom());
             },
             _TargetContainsCursor(cursor, target) {
-                return (cursor.X + target.scrollLeft()) > target.offsetLeft(true) && (cursor.X + target.scrollLeft()) < target.offsetRight(true) &&
-                    (cursor.Y + target.scrollTop()) > target.offsetTop() && (cursor.Y + target.scrollTop()) < target.offsetBottom();
+                const X = cursor.X + target.scrollLeft();
+                const Y = cursor.Y + target.scrollTop();
+                return X > target.offsetLeft(true) && X < target.offsetRight(true) &&
+                    Y > target.offsetTop() && Y < target.offsetBottom();
             },
             _findCursorHoveredDrag(cursor, cb) {
                 for (let i = 0; i < this.drags.length; ++i) {
@@ -463,7 +461,7 @@
 
         const HTMLDraggableItems = function(elementName) {
             this.element = document.createElement(elementName);
-            this._handleEvents();
+            this._setupEvents();
         }
         HTMLDraggableItems.prototype = {
             super() {
@@ -506,7 +504,6 @@
                 let margin = 0;
                 if (doMargin) {
                     margin = getOffsetLeft(this.element);
-                    margin += this.scrollLeft();
                 }
                 return this.element.offsetLeft + margin;
             },
@@ -531,11 +528,11 @@
                 this.element.style.top = `${top}px`;
             },
             scrollTop() {
-                const parentElem = getDeepParent(this.element);
+                const parentElem = getLastParent(this.element);
                 return parentElem.scrollTop;
             },
             scrollLeft() {
-                const parentElem = getDeepParent(this.element);
+                const parentElem = getLastParent(this.element);
                 return parentElem.scrollLeft;
             },
             innerContent(content) {
@@ -556,7 +553,7 @@
                 this.seekParent = false;
                 this.element = this.element.querySelector('.draggable');
             },
-            setHovered() {
+            toggleHovered() {
                 this.element.classList.toggle('hovered')
             },
             insertDragAfter(thisInstance) {
@@ -614,9 +611,12 @@
                     case 'dropped':
                         this.render(true).dispatchEvent(this.onDroppedEvt);
                         break;
+                    default:
+                        console.error(`Unknown event name ${evtName}`);
+                        break;
                 }
             },
-            _handleEvents() {
+            _setupEvents() {
                 this.onDraggedEvt = new CustomEvent('dragged', {detail: {HTMLItem: this}});
                 this.onDroppedEvt = new CustomEvent('dropped', {detail: {HTMLItem: this}});
             }
@@ -772,7 +772,7 @@
             let cells = [];
             for (let y = 0; y < nbCells; ++y) {
                 cells.push({
-                    content: y == nbCells - 1 ? 'Dragme!!' : makeid(6),
+                    content: y == nbCells - 1 ? 'Dragme!!' : randomStr(6),
                     unit: 'px',
                     editable: false,
                     onEdit: (value) => {
