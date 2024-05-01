@@ -14,6 +14,18 @@
         }
     }
 
+    :root {
+        --grid-border-color: #929292;
+
+        --font-color-default: #252525;
+        --font-color-dropped: #fafafa;
+
+        --row-even-bg-color: #bbe3fc;
+        --row-odd-bg-color: #f0f0f0;
+        --row-even-hover-bg-color: #a5c9e1;
+        --row-odd-hover-bg-color: #eaeaea;
+    }
+
     * {
         margin: 0;
         padding: 0;
@@ -21,11 +33,13 @@
 
     html {
         height: 100%;
+        font-size: 2vw;
     }
 
     body {
         background: #0f0f0f;
         height: 100%;
+        font-family: Arial, Helvetica, sans-serif;
     }
 
     #content {
@@ -34,18 +48,17 @@
         background: #f0f0f0;
         margin: auto;
         position: relative;
-        border-left: 1px solid #0f0f0f;
-        border-right: 1px solid #0f0f0f;
+        border-left: 1px solid var(--grid-border-color);
+        border-right: 1px solid var(--grid-border-color);
         user-select: none;
         overflow: auto;
     }
 
     .row {
         width: 100%;
-        border-bottom: 1px solid #0f0f0f;
+        border-bottom: 1px solid var(--grid-border-color);
         background: #f7f8f8;
-        font-size: 16px;
-        height: 2.6%;
+        font-size: 0.3em;
         color: #252525;
     }
 
@@ -61,19 +74,19 @@
     }
 
     .row:first-child {
-        border-top: 1px solid #0f0f0f;
+        border-top: 1px solid var(--grid-border-color);
     }
 
     .row.lonely:nth-child(even) {
-        background: #bbe3fc;
+        background: var(--row-even-bg-color);
     }
-
+    
     .row.lonely:nth-child(even):hover {
-        background: #a5c9e1;
+        background: var(--row-even-hover-bg-color);
     }
 
     .row:nth-child(odd):hover {
-        background: #eaeaea;
+        background: var(--row-odd-hover-bg-color);
     }
 
     .empty {
@@ -81,25 +94,27 @@
         display: block;
         width: 100%;
         background:#f7f8f8;
-        border-top: 1px solid #0f0f0f;
+        border-top: 1px solid var(--grid-border-color);
     }
 
     .row.dragged {
-        border: 1px dashed #0f0f0f;
-        font-size: 12px;
-        height: 2.3%;
+        border: 1px dashed var(--grid-border-color);
+        font-size: 0.25em;
         filter: drop-shadow(0 0 8px rgba(85, 85, 85, 0.5));
-        filter: opacity(78%);
+        filter: opacity(74%);
     }
 
     .cell {
-        border-right: 1px solid #0f0f0f;
+        border-right: 1px solid var(--grid-border-color);
         display: inline-block;
         vertical-align: top;
         text-align: center;
         padding: 6px 0;
         box-sizing: border-box;
         height: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .draggable {
@@ -129,7 +144,7 @@
 
         const randomStr = (length) => {
             let result = '',
-                characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-',
+                characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZa bcdefghijklmnopqrstuvwxyzàéù0123456789-',
                 charactersLength = characters.length;
             for (let i = 0; i < length; ++i) {
                 result += characters.charAt(Math.floor(Math.random() * charactersLength));
@@ -285,7 +300,9 @@
             dragit(cursor, seekParent) {
                 if (cursor.buttons != 'leftClick')
                     return;
-
+                
+                console.log('this.pressed', this.pressed);
+                
                 if (!this._isInit)
                     this._init(seekParent);
                 this.pressed = true;
@@ -598,7 +615,11 @@
                     position: 'static',
                 });
 
-                this.element.classList.remove('dragged');
+                const droppedAnimation = new DroppedAnimation(this.element);
+                
+                droppedAnimation.start(800, (element) => {
+                    element.classList.remove('dragged');
+                });
 
                 if (this.seekParent)
                     this.unsetSeekParent();
@@ -619,6 +640,47 @@
             _setupEvents() {
                 this.onDraggedEvt = new CustomEvent('dragged', {detail: {HTMLItem: this}});
                 this.onDroppedEvt = new CustomEvent('dropped', {detail: {HTMLItem: this}});
+            }
+        }
+
+        const DroppedAnimation = function(element) {
+            this.element = element;
+        }
+        DroppedAnimation.prototype = {
+            start(timeout, onFinish) {
+                timeout = timeout || 1000;
+                const animation = this._setupDroppedAnimation(this.element, timeout);
+                animation.onfinish = () => {
+                    if (typeof onFinish == 'function')
+                        onFinish(this.element);
+                };
+
+                animation.play();
+            },
+            _setupDroppedAnimation(element, timeout) {
+                let elementBGColor = element.style.background;
+                
+                if (!elementBGColor) {
+                    let computedStyle = window.getComputedStyle(element);
+                    if (computedStyle.getPropertyValue('background-color'))
+                        elementBGColor = computedStyle.getPropertyValue('background-color');
+                    else
+                        elementBGColor = computedStyle.getPropertyValue('background');
+                }
+                
+                const keyFrames = [
+                    {background: elementBGColor, fontSize: '0.25em'},
+                    {background: '#7fdb8860', fontSize: '0.25em'},
+                    {background: '#7fdb8890', fontSize: '0.25em'},
+                    {background: elementBGColor, fontSize: '0.27em'},
+                    {fontSize: '0.3em'}
+                ];
+                
+                const kfEffect = new KeyframeEffect(element, keyFrames, {
+                    duration: timeout,
+                });
+
+                return new Animation(kfEffect, document.timeline);
             }
         }
 
@@ -698,9 +760,9 @@
             makeRow(cells, autoWidth, head) {
                 const row = new Row(head);
                 const nbCells = cells.length;
-                let cellWidth;
-                if (autoWidth) {
-                    cellWidth = (this.parentCnt.clientWidth / nbCells);
+                let percentage;
+                if (autoWidth) { 
+                    percentage = (this.parentCnt.clientWidth / nbCells) / (this.parentCnt.clientWidth / 100);
                 }
 
                 for (let i = 0; i < nbCells; ++i) {
@@ -710,7 +772,7 @@
                     if (c.hasOwnProperty('width'))
                         cell.width(c.width, c.unit);
                     else if (autoWidth)
-                        cell.width(cellWidth, 'px');
+                        cell.width(percentage, '%');
 
                     if (c.hasOwnProperty('height'))
                         cell.height(c.height, c.unit);
@@ -772,7 +834,7 @@
             let cells = [];
             for (let y = 0; y < nbCells; ++y) {
                 cells.push({
-                    content: y == nbCells - 1 ? 'Dragme!!' : randomStr(6),
+                    content: y == nbCells - 1 ? 'Dragme!!' : randomStr(8),
                     unit: 'px',
                     editable: false,
                     onEdit: (value) => {
