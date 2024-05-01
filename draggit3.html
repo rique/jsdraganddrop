@@ -300,9 +300,7 @@
             dragit(cursor, seekParent) {
                 if (cursor.buttons != 'leftClick')
                     return;
-                
-                console.log('this.pressed', this.pressed);
-                
+                                
                 if (!this._isInit)
                     this._init(seekParent);
                 this.pressed = true;
