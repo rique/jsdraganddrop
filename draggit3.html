@@ -20,6 +20,8 @@
         --font-color-default: #252525;
         --font-color-dropped: #fafafa;
 
+        --outline-input-color: #458bdc;
+
         --row-even-bg-color: #bbe3fc;
         --row-odd-bg-color: #f0f0f0;
         --row-even-hover-bg-color: #a5c9e1;
@@ -108,25 +110,45 @@
         border-right: 1px solid var(--grid-border-color);
         display: inline-block;
         vertical-align: top;
-        text-align: center;
-        padding: 6px 0;
+        padding: 8px 12px;
         box-sizing: border-box;
-        height: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .cell.editable {
+        cursor: pointer;
+    }
+    
+    .cell input {
+        width: 97%;
+        display: block;
+        padding: 9px 4px;
+        margin: auto;
+        border: none;
+        outline: 2px solid var(--outline-input-color);
+        font-family: Arial, Helvetica, sans-serif;
     }
 
     .draggable {
         cursor: move;
     }
 
+    .cell.draggable {
+        text-align: center;
+    }
+
     .row.hovered .cell {
         border-bottom: 1px solid #ff4f4f;
     }
 
-    .head .cell, .cell.editable {
+    .head .cell, .cell.editable:has(input) {
         cursor: default;
+    }
+
+    .cell.editable:has(input) {
+        padding: 0;
     }
 
     .cell:last-child {
@@ -142,6 +164,186 @@
     <script>
     (function(window, document, undefined) {
 
+        const generateLoremText = (numParagraphs, numWords) => {
+            let loremText = '';
+            const words = [
+                'Lorem',
+                'ipsum',
+                'dolor',
+                'sit',
+                'amet',
+                'consectetur',
+                'adipiscing',
+                'elit',
+                'sed',
+                'do',
+                'eiusmod',
+                'tempor',
+                'incididunt',
+                'ut',
+                'ut',
+                'labore',
+                'et',
+                'dolore',
+                'magna',
+                'magnam',
+                'aliqua',
+                'Ut',
+                'enim',
+                'in',
+                'ad',
+                'minim',
+                'veniam',
+                'quis',
+                'nostrud',
+                'exercitation',
+                'ullamco',
+                'laboris',
+                'nisi',
+                'ut',
+                'aliquip',
+                'ex',
+                'ea',
+                'commodo',
+                'consequat',
+                'Duis',
+                'aute',
+                'irure',
+                'et',
+                'est',
+                'dolor',
+                'in',
+                'reprehenderit',
+                'in',
+                'voluptate',
+                'velit',
+                'esse',
+                'cillum',
+                'dolore',
+                'eu',
+                'fugiat',
+                'nulla',
+                'pariatur',
+                'Excepteur',
+                'sint',
+                'occaecat',
+                'cupidatat',
+                'non',
+                'proident',
+                'sunt',
+                'in',
+                'culpa',
+                'qui',
+                'quid',
+                'quam',
+                'quo',
+                'officia',
+                'deserunt',
+                'mollit',
+                'morietur',
+                'anim',
+                'id',
+                'est',
+                'laborum',
+                'besto',
+                '10',
+                '11',
+                '12',
+                '22',
+                '28',
+                'Itaque',
+                'modorenai',
+                'earum',
+                'rerum',
+                'Maximus',
+                'tenetur',
+                'a',
+                'sapiente',
+                'dominam',
+                '1',
+                '2',
+                '5',
+                '8',
+                'vorbis',
+                'comentitur',
+                'tremens',
+                'quando',
+                'Regis',
+                'expectare',
+                'vel',
+                'voluptas',
+                'quam',
+                'nihil',
+                'molestiae',
+                'consequatur',
+                'autem',
+                'Quis',
+                'eum',
+                'iure',
+                'corpum',
+                'Corpus',
+                'magnam',
+                'aliquam',
+                'quaerat',
+                'voluptatem',
+                'fugit',
+                'perspiciatis',
+                'error',
+                'accusantium',
+                'doloremque',
+                'laudantium',
+                'totam',
+                'rem',
+                'aperiam',
+                'arepam',
+                'architecto',
+                'beatae',
+                'vitae',
+                'dicta',
+                'loream',
+                'explicabo',
+                'Nemo',
+                'Lucius',
+                'aqua',
+                'dignissimos',
+                'ducimus',
+                'blanditiis',
+                'praesentium',
+                'voluptatum',
+                'deleniti',
+                'atque',
+                'corrupti',
+                'quos',
+                'dolores',
+                'quas',
+                'molestias',
+                'excepturi',
+                'sint',
+                'occaecati',
+                'et',
+                'cupiditate',
+                'provident',
+                'in',
+                'similique',
+                'sunt',
+                'mollitia',
+                'animi',
+                'voluptatibus',
+                'maiores',
+                'recusandae'
+            ];
+
+            for (let i = 0; i < numParagraphs; i++) {
+                let paragraph = '';
+                for (let j = 0; j < numWords; j++) {
+                    let randomWord = words[Math.floor(Math.random() * words.length)];
+                    paragraph += randomWord + ' ';
+                }
+                loremText += paragraph;
+            }
+            return loremText;
+        }
+
         const randomStr = (length) => {
             let result = '',
                 characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZa bcdefghijklmnopqrstuvwxyzàéù0123456789-',
@@ -150,6 +352,12 @@
                 result += characters.charAt(Math.floor(Math.random() * charactersLength));
             }
             return result;
+        }
+
+        const htmlEntities = (rawStr) => {
+            return rawStr.replace(/[\u00A0-\u9999<>\&]/g, function(i) {
+                return '&#'+i.charCodeAt(0)+';';
+            });
         }
 
         const getOffsetLeft = (elem) => {
@@ -551,7 +759,13 @@
                 return parentElem.scrollLeft;
             },
             innerContent(content) {
-               this.render(true).innerHTML = content;
+                if (typeof content !== 'undefined')
+                    this.render(true).innerHTML = content;
+                else
+                    return this.render(true).innerHTML;
+            },
+            append(...elements) {
+                this.element.append(...elements.map(el => el.render()));
             },
             css(style, replace) {
                 style = style || {};
@@ -581,14 +795,17 @@
                     this.element.classList.remove('draggable');
                 this.draggable = draggable;
             },
-            onDragged(cb) {
-                this.element.addEventListener('dragged', cb);
-            },
-            onDropped(cb) {
-                this.element.addEventListener('dropped', cb);
-            },
             isDraggable() {
                 return this.draggable;
+            },
+            onDragged(cb) {
+                this.addEventListener('dragged', cb);
+            },
+            onDropped(cb) {
+                this.addEventListener('dropped', cb);
+            },
+            addEventListener(evtName, cb) {
+                this.element.addEventListener(evtName, cb);
             },
             init(seekParent) {
                 if (!this.element)
@@ -615,7 +832,7 @@
 
                 const droppedAnimation = new DroppedAnimation(this.element);
                 
-                droppedAnimation.start(800, (element) => {
+                droppedAnimation.start(794, (element) => {
                     element.classList.remove('dragged');
                 });
 
@@ -682,19 +899,102 @@
             }
         }
 
+        const EditInput = function() {
+            this.super().call(this, 'input');
+        };
+        EditInput.prototype = {
+            hidden(hidden) {
+                if (hidden) {
+                    this.isHidden = true;
+                    this.element.setAttribute('type', 'hidden');
+                } else {
+                    this.isHidden = false;
+                    this.element.setAttribute('type', 'text');
+                }
+            },
+            value(value) {
+                if (value)
+                    this.element.value = value;
+                else
+                    return this.element.value;
+            },
+            blur() {
+                this.element.blur();
+            },
+            focus() {
+                this.element.focus();
+            },
+            select() {
+                this.element.select();
+            },
+            onBlur(cb) {
+                this.addEventListener('blur', cb);
+            },
+            onFocus(cb) {
+                this.addEventListener('focus', cb);
+            }
+        }
+
         const Cell = function() {
             this.super().call(this, 'div');
             this.setupCell();
-            this._eventManager = new ListEvents();
         }
         Cell.prototype = {
             setupCell() {
                 this.element.classList.add('cell');
             },
-            setEditable(editable, onEdit) {
-                this.editable = editable;
-                this.element.addEventListener('click', onEdit);
+            setEditable(editable, onEdit, onValidate) {
+                this.onEdit(onEdit, onValidate);
+                this.element.classList.add('editable');
+                this.editable;
+            },
+            isEditable() {
+                return this.editable;
+            },
+            onEdit(onEdit, onValidate) {
+                this.addEventListener('click', evt =>  this._edit(evt, onEdit, onValidate));
+            },
+            _edit(evt, onEdit, onValidate) {
+                if (this.isEditing)
+                    return;
+
+                this.isEditing = true;
+                this.input = new EditInput();
+                this.hidden = new EditInput();
+                this.input.hidden(false);
+                this.hidden.hidden(true)
+                this.input.onBlur(evt => this._validateBlur(evt, onValidate));
+                this.input.addEventListener('keydown', evt =>  this._validateEnter(evt, onValidate));
+                
+                this.input.value(this.innerContent());
+                this.hidden.value(this.innerContent());
+                this.innerContent('');
+                this.append(this.input, this.hidden);
+                this.input.focus();
+                this.input.select();
+                onEdit(evt);
+            },
+            _validateBlur(evt, cb) {
+                this._validate(evt, cb);
+            },
+            _validateEnter(evt, cb) {
+                if (evt.key !== 'Enter')
+                    return;
+                this._validate(evt, cb);
+            },
+            _validate(evt, cb) {
+                if (!this.isEditing)
+                    return;
+                let inputValue = this.input.value();
+                console.log('values', inputValue, this.hidden.value());
+                if (inputValue != this.hidden.value()) {
+                    console.log('calling CB', cb);
+                    cb(evt, inputValue);
+                }
+                this.innerContent(inputValue);
+                this.isEditing = false;
             }
+
         };
 
         const Row = function(head) {
@@ -725,7 +1025,7 @@
             },
             appendCells() {
                 this.applied = true;
-                this.cells.forEach(cell => this.element.append(cell.render()));
+                this.append(...this.cells);
             },
             getCells() {
                 return this.cells;
@@ -734,6 +1034,7 @@
 
         Object.setPrototypeOf(Cell.prototype, HTMLDraggableItems.prototype);
         Object.setPrototypeOf(Row.prototype, HTMLDraggableItems.prototype);
+        Object.setPrototypeOf(EditInput.prototype, HTMLDraggableItems.prototype);
 
         const GridMaker = function(parentCnt) {
             this.parentCnt = parentCnt;
@@ -758,8 +1059,9 @@
             makeRow(cells, autoWidth, head) {
                 const row = new Row(head);
                 const nbCells = cells.length;
+
                 let percentage;
-                if (autoWidth) { 
+                if (autoWidth) {
                     percentage = (this.parentCnt.clientWidth / nbCells) / (this.parentCnt.clientWidth / 100);
                 }
 
@@ -775,9 +1077,9 @@
                     if (c.hasOwnProperty('height'))
                         cell.height(c.height, c.unit);
                     if (c.hasOwnProperty('editable') && c.editable)
-                        cell.setEditable(c.editable, c.onEdit);
-                    if (c.hasOwnProperty('draggit') && this.byCell && !row.isHead()) {
-                        cell.setDraggable(c.draggit);
+                        cell.setEditable(c.editable, c.onEdit, c.onValidate);
+                    if (c.hasOwnProperty('draggable') && this.byCell && !row.isHead()) {
+                        cell.setDraggable(c.draggable);
                         cell.onDragged(c.onDragged);
                         cell.onDropped(c.onDropped);
                     }
@@ -832,18 +1134,21 @@
             let cells = [];
             for (let y = 0; y < nbCells; ++y) {
                 cells.push({
-                    content: y == nbCells - 1 ? 'Dragme!!' : randomStr(8),
+                    content: i == 0 && y == nbCells - 1 ? 'Drag them!!' : y == nbCells - 1 ? 'Drag me!!' : generateLoremText(1, 6),
                     unit: 'px',
-                    editable: false,
-                    onEdit: (value) => {
-                        console.log('edit value', value);
+                    editable: y < nbCells - 1 && i > 0 && y % 2 != 0,
+                    onEdit: (evt) => {
+                        console.log('editing!', evt);
                     },
-                    draggit: y == nbCells - 1 && i > 0,
+                    onValidate: (evt, value) => {
+                        console.log('validate value', value);
+                    },
+                    draggable: y == nbCells - 1 && i > 0,
                     onDragged: (evt) => {
-                        evt.detail.HTMLItem.innerContent('Dropme!!');
+                        evt.detail.HTMLItem.innerContent('Drop me!!');
                     },
                     onDropped: (evt) => {
-                        evt.detail.HTMLItem.innerContent('Dragme!!');
+                        evt.detail.HTMLItem.innerContent('Drag me!!');
                     }
                 });
             }
