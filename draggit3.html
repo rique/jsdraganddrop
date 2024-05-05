@@ -1078,6 +1078,39 @@
 
         };
         
+        const SortableCell = function() {
+            Cell.call(this);
+            this.sorted = false;
+            this.reversed = false;
+            this.sortModes = {
+                NONE: 0,
+                ASC: 1,
+                DESC: 2,
+            }
+            this._sortMode = this.sortModes.NONE;
+        };
+        SortableCell.prototype = {
+            isReversed() {
+                return this._sortMode == this.sortModes.DESC;
+            },
+            isSorted() {
+                return this._sortMode > this.sortModes.NONE;
+            },
+            sort() {
+                this._updateSortMode();
+                this.eventsList.trigger('onSortedCell', this);
+            },
+            onSortedCell(cb, subscriber) {
+                this.eventsList.onEventRegister({cb, subscriber}, 'onSortedCell');
+            },
+            _updateSortMode() {
+                if (this._sortMode == this.sortModes.DESC)
+                    this._sortMode = this.sortModes.NONE;
+                else
+                    this._sortMode++;
+            },
+        }
+
         const Row = function(head) {
             HTMLDraggableItems.call(this, 'div');
             this.cells = [];
@@ -1130,7 +1163,7 @@
         Object.setPrototypeOf(Row.prototype, HTMLDraggableItems.prototype);
         Object.setPrototypeOf(Cell.prototype, HTMLDraggableItems.prototype);
         Object.setPrototypeOf(EditInput.prototype, HTMLItems.prototype);
-
+        Object.setPrototypeOf(SortableCell.prototype, Cell.prototype);
         const BaseColumn = function() {
             this.cells = [];
         };
@@ -1266,6 +1299,18 @@
                 this.eventsList.trigger('onSortedGrid', indexedColumn.isSorted(), indexedColumn.isReversed());
                 this.render();
             },
+            sortGridByColumnIndexV2(col) {
+                col.sort();
+                const colIndex = col.getIndex();
+                const reversed = col.isReversed();
+                const isSorted = col.isSorted();
+
+                if (isSorted)
+                    this._sortGrid(colIndex, reversed)
+
+                this.eventsList.trigger('onSortedGrid', isSorted, reversed);
+                this.render(isSorted);
+            },
             onSortedGrid(cb, subscriber) {
                 this.eventsList.onEventRegister({cb, subscriber}, 'onSortedGrid');
             },
@@ -1286,6 +1331,28 @@
                 this.rows.splice((newIdx - 1), 0, row);
                 Object.keys(this.indexedColumns).forEach(colIndex => this.indexedColumns[colIndex] = this.getColumnByIndex(colIndex));
                 this.render();
+            },
+            render(sorted) {
+                clearElementInnerHTML(this.parentCnt);
+                if (this.head)
+                    this.parentCnt.append(this.head.render());
+                let rows = this.rows;
+                if (sorted)
+                    rows = this.sortedRows;
+                console.log('sorted', sorted, rows);
+                rows.forEach(row => this.parentCnt.append(row.render()));
+            },
+            _sortGrid(colIndex, reversed) {
+                this.sortedRows = [...this.rows].sort((row1, row2) => {
+                    if (row1.isHead())
+                        return 0;
+                    const cnt1 = row1.getCellByIndex(colIndex).innerContent();
+                    const cnt2 = row2.getCellByIndex(colIndex).innerContent();
+
+                    if (cnt1 > cnt2) return reversed ? -1 : 1;
+                    if (cnt1 < cnt2) return reversed ? 1 : -1;
+                    return 0;
+                });
             }
         }
 
@@ -1331,13 +1398,16 @@
 
                 for (let i = 0; i < nbCells; ++i) {
                     let c = cells[i];
-                    let cell = new Cell();
+                    let cell;
                     if (this.sortable) {
+                        cell = new SortableCell();
                         cell.setIndex(i);
-                        if (head && !c.draggable) {
-                            cell.addEventListener('click', this.grid.sortGridByColumnIndex.bind(this.grid, cell.getIndex()))
+                        if (row.isHead() && !c.draggable) {
+                            cell.addEventListener('click', this.grid.sortGridByColumnIndexV2.bind(this.grid, cell))
                         }
-                    }
+                    } else
+                        cell = new Cell();
+                    
                     if (c.hasOwnProperty('width'))
                         cell.width(c.width, c.unit);
                     else if (autoWidth)
@@ -1409,7 +1479,7 @@
 
         const gridMaker = new GridMaker(document.getElementById('content'), true);
 
-        const nbRows = 150;
+        const nbRows = 25;
         const nbCells = 11;
         const letters = ["1", '2', '3', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm'];
         gridMaker.setDraggable(true, true);
