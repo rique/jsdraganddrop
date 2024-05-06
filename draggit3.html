@@ -556,7 +556,7 @@
                     thisdragme = thisdragme.getParentItem();
                 }
 
-                thisdragme.insertItemAfter(dragme, true);
+                thisdragme.insertItemAfter(dragme);
             },
             toggleHovered(hovered) {
                this.getDragme().toggleHovered(hovered)
@@ -820,7 +820,7 @@
             data({name, value}) {
                 this.element.dataset[name] = value;
             },
-            insertItemAfter(thisInstance, d) {
+            insertItemAfter(thisInstance) {
                 thisInstance.element.insertAdjacentElement('afterend', this.render());
             },
             addEventListener(evtName, cb) {
