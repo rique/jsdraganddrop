@@ -22,6 +22,8 @@
 
         --outline-input-color: #458bdc;
 
+        --cell-sorted-bg: #dadada;
+
         --row-even-bg-color: #bbe3fc;
         --row-odd-bg-color: #f0f0f0;
         --row-even-hover-bg-color: #a5c9e1;
@@ -117,7 +119,11 @@
         white-space: nowrap;
     }
 
-    .cell.editable {
+    .cell.sorted {
+        background: var(--cell-sorted-bg);
+    }
+
+    .cell.editable, .cell.sortable {
         cursor: pointer;
     }
     
@@ -132,7 +138,7 @@
     }
 
     .draggable {
-        cursor: move;
+        cursor: move!important;
     }
 
     .cell.draggable {
@@ -143,7 +149,7 @@
         border-bottom: 1px solid #ff4f4f;
     }
 
-    .head .cell, .cell.editable:has(input) {
+    .cell, .cell.editable:has(input) {
         cursor: default;
     }
 
@@ -154,7 +160,6 @@
     .cell:last-child {
         border: 0;
     }
-
     </style>
 </head>
 <body>
@@ -793,6 +798,18 @@
             append(...elements) {
                 this.element.append(...elements.map(el => el.render()));
             },
+            classAdd(className) {
+                this.element.classList.add(className);
+            },
+            classRemove(className) {
+                this.element.classList.remove(className);
+            },
+            classReplace(className, replaceWith) {
+                this.element.classList.replace(className, replaceWith);
+            },
+            classToggle(className) {
+                this.element.classList.toggle(className);
+            },
             css(style, replace) {
                 style = style || {};
                 if (!replace)
@@ -845,12 +862,12 @@
             onIndexUpdate(cb, subscriber) {
                 this.eventsList.onEventRegister({cb, subscriber}, 'onIndexUpdate');
             },
-            insertItemAfter(thisInstance) {
-                let thisInstanceIdx = thisInstance.getIndex();
+            insertItemAfter(cellInstance) {
+                let thisInstanceIdx = cellInstance.getIndex();
                 if (this.index > thisInstanceIdx)
                     thisInstanceIdx++;
                 this.updateIndex(thisInstanceIdx);
-                thisInstance.element.insertAdjacentElement('afterend', this.render());
+                cellInstance.element.insertAdjacentElement('afterend', this.render());
             }
         }
 
@@ -1023,11 +1040,11 @@
         }
         Cell.prototype = {
             setupCell() {
-                this.element.classList.add('cell');
+                this.classAdd('cell');
             },
             setEditable(editable, onEdit, onValidate) {
                 this.onEdit(onEdit, onValidate);
-                this.element.classList.add('editable');
+                this.classAdd('editable');
                 this.editable;
             },
             isEditable() {
@@ -1044,7 +1061,7 @@
                 this.input = new EditInput();
                 this.hidden = new EditInput();
                 this.input.hidden(false);
-                this.hidden.hidden(true)
+                this.hidden.hidden(true);
                 this.input.onBlur(evt => this._validateBlur(evt, onValidate));
                 this.input.addEventListener('keydown', evt =>  this._validateEnter(evt, onValidate));
                 
@@ -1088,8 +1105,13 @@
                 DESC: 2,
             }
             this._sortMode = this.sortModes.NONE;
+            this.onSortedCell(this.switchSortedClass.bind(this), this);
         };
         SortableCell.prototype = {
+            setupCell() {
+                this.classAdd('sortable');
+                Cell.prototype.setupCell.call(this);
+            },
             isReversed() {
                 return this._sortMode == this.sortModes.DESC;
             },
@@ -1103,12 +1125,24 @@
             onSortedCell(cb, subscriber) {
                 this.eventsList.onEventRegister({cb, subscriber}, 'onSortedCell');
             },
+            switchSortedClass(cell) {
+                switch (cell._sortMode) {
+                    case this.sortModes.NONE:
+                        cell.classRemove('sorted');
+                        break;
+                    case this.sortModes.ASC:
+                    case this.sortModes.DESC:
+                        cell.getParentItem().clearSortedCells();
+                        cell.classAdd('sorted');
+                        break;
+                }
+            },
             _updateSortMode() {
                 if (this._sortMode == this.sortModes.DESC)
                     this._sortMode = this.sortModes.NONE;
                 else
                     this._sortMode++;
-            },
+            }
         }
 
         const Row = function(head) {
@@ -1151,12 +1185,22 @@
             getCells() {
                 return this.cells;
             },
+            
+        };
+
+        const SortableRow = function(head) {
+            Row.call(this, head);
+        };
+        SortableRow.prototype = {
             getCellByIndex(cellIndx) {
-                for (let i = 0; i < this.cells.length; ++i) {
-                    let cell = this.cells[i];
-                    if (cell.getIndex() == cellIndx)
-                        return cell;
-                }
+                return this.cells[cellIndx];
+            },
+            addCell(cell) {
+                cell.setIndex(this.cells.length);
+                Row.prototype.addCell.call(this, cell);
+            },
+            clearSortedCells() {
+                this.cells.forEach(cell => cell.classRemove('sorted'));
             }
         };
 
@@ -1164,6 +1208,8 @@
         Object.setPrototypeOf(Cell.prototype, HTMLDraggableItems.prototype);
         Object.setPrototypeOf(EditInput.prototype, HTMLItems.prototype);
         Object.setPrototypeOf(SortableCell.prototype, Cell.prototype);
+        Object.setPrototypeOf(SortableRow.prototype, Row.prototype);
+
         const BaseColumn = function() {
             this.cells = [];
         };
@@ -1299,11 +1345,11 @@
                 this.eventsList.trigger('onSortedGrid', indexedColumn.isSorted(), indexedColumn.isReversed());
                 this.render();
             },
-            sortGridByColumnIndexV2(col) {
-                col.sort();
-                const colIndex = col.getIndex();
-                const reversed = col.isReversed();
-                const isSorted = col.isSorted();
+            sortGridByCell(cell) {
+                cell.sort();
+                const colIndex = cell.getIndex();
+                const reversed = cell.isReversed();
+                const isSorted = cell.isSorted();
 
                 if (isSorted)
                     this._sortGrid(colIndex, reversed)
@@ -1336,10 +1382,12 @@
                 clearElementInnerHTML(this.parentCnt);
                 if (this.head)
                     this.parentCnt.append(this.head.render());
+                
                 let rows = this.rows;
+                
                 if (sorted)
                     rows = this.sortedRows;
-                console.log('sorted', sorted, rows);
+
                 rows.forEach(row => this.parentCnt.append(row.render()));
             },
             _sortGrid(colIndex, reversed) {
@@ -1387,7 +1435,11 @@
                 this._unsetDraggableGrid();
             },
             makeRowIdx(cells, autoWidth, head, idx) {
-                const row = new Row(head);
+                let row;
+                if (this.sortable)
+                    row = new SortableRow(head);
+                else
+                    row = new Row(head);
                 const nbCells = cells.length;
 
                 let percentage;
@@ -1399,12 +1451,9 @@
                 for (let i = 0; i < nbCells; ++i) {
                     let c = cells[i];
                     let cell;
-                    if (this.sortable) {
+                    if (this.sortable && row.isHead() && c.sorterCell) {
                         cell = new SortableCell();
-                        cell.setIndex(i);
-                        if (row.isHead() && !c.draggable) {
-                            cell.addEventListener('click', this.grid.sortGridByColumnIndexV2.bind(this.grid, cell))
-                        }
+                        cell.addEventListener('click', this.grid.sortGridByCell.bind(this.grid, cell));
                     } else
                         cell = new Cell();
                     
@@ -1489,6 +1538,7 @@
             for (let y = 0; y < nbCells; ++y) {
                 cells.push({
                     content: i == 0 && y == nbCells - 1 ? 'Drag them!!' : y == nbCells - 1 ? 'Drag me!!' : generateLoremText(1, 6),
+                    sorterCell: i == 0 && y < nbCells - 1,
                     unit: 'px',
                     editable: y < nbCells - 1 && i > 0 && y % 2 != 0,
                     onEdit: (evt) => {
